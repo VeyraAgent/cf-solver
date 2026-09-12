@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aliyun Captcha Solver</title>
+</head>
+<body>
+<div id="cap"></div>
+<button id="btn" style="width:200px;height:44px">v</button>
+<script src="https://o.alicdn.com/captcha-frontend/aliyunCaptcha/AliyunCaptcha.js"></script>
+<script>
+window.__ready = false;
+window.__verify = null;
+function boot() {
+  if (typeof initAliyunCaptcha !== 'function') { setTimeout(boot, 200); return; }
+  initAliyunCaptcha({
+    SceneId: '__SCENE__',
+    prefix: '__PREFIX__',
+    mode: 'popup',
+    region: '__REGION__',
+    language: 'en',
+    element: '#cap',
+    button: '#btn',
+    getInstance: function (i) { window.__inst = i; window.__ready = true; },
+    captchaVerifyCallback: function (p) {
+      window.__verify = p;
+      return { captchaResult: true, bizResult: true };
+    },
+  });
+}
+boot();
+</script>
+</body>
+</html>

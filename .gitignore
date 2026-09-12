@@ -1,0 +1,38 @@
+# python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.pytest_cache/
+
+# runtime temp files
+tencent/_tmp_eval.js
+tencent/_tdc_tmp.js
+
+# secrets & tokens
+common/apikey.txt
+.env
+*.env
+config.json
+*tokens*.json
+.solver-token*
+
+# browser artifacts
+user_data/
+*.log
+
+# heavy models (optional downloads)
+arkose/models/
+recaptcha/models/*.onnx
+aliyun/*.onnx
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+
+# misc junk
+re-tools/
+
+**/node_modules/
