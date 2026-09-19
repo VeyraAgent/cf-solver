@@ -86,7 +86,7 @@ Legend:
 | ⚙️ | `recaptcha_audio` | transcribed text | needs the audio clip URL (no browser) |
 | ⚙️ | `steam` | solved text | needs the captcha image |
 | ⚙️ | `vk` | solved text | needs the captcha image or `sid` |
-| ⚙️ | `zhihu` | 4-char text | needs the captcha image |
+| ✅ | `zhihu` | 4-char text | verified on a live zhihu.com captcha image |
 | 🔒 | `akamai` | `_abck` cookie | datacenter IP is scored independently |
 
 ### No-browser (compute / image / PoW)
@@ -100,8 +100,8 @@ Legend:
 | ✅ | `rotate` | rotation angle | ships its own ONNX model |
 | ✅ | `image_to_text` | OCR text | ddddocr, raw base64 or data-URI |
 | ✅ | `tspd` | F5/DDoS cookie | needs `url` |
+| ✅ | `altcha` | PoW payload | official altcha-lib; verified with a generated challenge |
 | ⚙️ | `tencent` | `ticket` + `randstr` | needs the target's `appid` (public test id is the default) |
-| ⚙️ | `altcha` | PoW payload | needs the challenge JSON or a live URL |
 | ⚙️ | `procaptcha` | PoW solution | needs the dapp `url` + `sitekey` |
 | ⚙️ | `cerberus` | challenge solution (blake3) | needs the challenge blob |
 | ⚙️ | `yidun` | NetEase slider (v3 protocol 2.28.5) | needs `captcha_id` or a URL |
@@ -385,10 +385,17 @@ payload was byte-identical — the IP, not the engine, is what changed.
 
 ## 🔧 Recent fixes
 
+- `cap` / `anubis` returned HTTP 500 — `SolveResponse.token` only accepted
+  `str | dict`, but `cap` returns a **list of int** and `anubis`/`goaway` return
+  an **int nonce** (`ResponseValidationError`). The field now accepts
+  `str | int | float | dict | list`.
 - `cap` — `NameError: name 'json' is not defined` on the challenge-format guard
   (missing `import json`); the PoW now returns solutions.
 - `friendly` — missing `import cloakbrowser` (and `json`), which made the browser
   path raise `NameError` instead of solving.
+- `steam` — the shipped `selftest.py` crashed on `hist[50]` (cv2 returns a
+  `(256,1)` histogram, so indexing gives an array, not a scalar); it now uses
+  the `_hist_val` helper. 45/45 checks pass.
 - `image_b64` accepts a `data:image/png;base64,…` prefix (stripped server-side).
 - `shumei` no longer returns HTTP 500 — numpy scalars in the result are normalized
   before serialization (`np.int32` etc. broke pydantic).
@@ -419,7 +426,9 @@ token or cookie came back — not merely "no HTTP 500":
 | `yandex` | SmartCaptcha token |
 | `geetest` | v4 `captcha_output` + `pass_token` |
 | `shumei`, `anubis`, `rotate` | result token / angle |
-| `image_to_text`, `cap`, `mcaptcha`, `goaway` | OCR text / PoW solution |
+| `image_to_text`, `cap`, `mcaptcha`, `goaway`, `altcha` | OCR text / PoW solution |
+| `zhihu` | solved a live zhihu.com captcha image |
+| `steam`, `yidun`, `dingxiang`, `douyin`, `cerberus`, `captchafox`, `recaptcha_audio` | shipped self-tests pass (45/5/30/27/35/5/31 checks) |
 
 The remaining `⚙️ needs input` types are complete but require a real sitekey,
 URL, or image from the target site — those values cannot be invented.
