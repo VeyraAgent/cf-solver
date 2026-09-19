@@ -130,7 +130,7 @@ fi
 # ── 8. verify + summary ──────────────────────────────────────────────────
 hr
 python - <<'PY' || true
-import importlib
+import importlib.util
 need = ["fastapi","uvicorn","playwright","cv2","numpy","PIL","onnxruntime","curl_cffi","httpx"]
 miss = [m for m in need if not importlib.util.find_spec(m)]
 print("imports ok" if not miss else "MISSING: " + ", ".join(miss))

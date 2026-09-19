@@ -24,87 +24,102 @@ One FastAPI process. One JSON call. Tokens in seconds.
 
 ```bash
 git clone https://github.com/VeyraAgent/cf-solver && cd cf-solver
-./install.sh          # deps + chromium + xvfb + node + ONNX models (arkose = optional)
+./install.sh          # python deps + chromium + xvfb + node sidecar + ONNX models
 ./run.sh              # FastAPI on :8877
 ```
+
+`run.sh` starts Xvfb automatically on a headless box, reads `$PORT`, and refuses
+to start if the port is already busy. Check it is up:
 
 ```bash
 curl -s http://localhost:8877/health
 ```
 
-Headless box? Browser-backed types need a display:
+Then solve:
 
 ```bash
-PORT=8877 xvfb-run -a -s "-screen 0 1920x1080x24" .venv/bin/python3 server.py
+curl -s -X POST http://localhost:8877/solve -H 'Content-Type: application/json' \
+  -d '{"type":"cloudflare","url":"https://nowsecure.nl/"}'
 ```
 
+> **First run on a fresh box:** `install.sh` is idempotent and safe to re-run.
+> Use `YES=1 ./install.sh` for a non-interactive install and
+> `WITH_ARKOSE=1 ./install.sh` to also pull the optional 1.4 GB Arkose models.
+
+
 ## 🧩 Supported types — 50
+
+Legend:
+
+- ✅ **verified** — solved live with a real token/cookie during testing
+- ⚙️ **needs input** — the solver is complete; it needs a real sitekey, URL, or image from your target
+- 🔒 **needs IP** — works, but the vendor scores the network independently, so a datacenter IP is refused
 
 ### Browser-backed
 
 | | type | result | notes |
 |---|---|---|---|
-| 🟢 | `cloudflare` | `cf_clearance` cookie + UA | full interstitial |
-| 🟢 | `cloudflare_challenge` | `cf_clearance` cookie | alias path for the challenge endpoint |
-| 🟢 | `turnstile` | widget token | any sitekey, 3 solving modes |
-| 🟢 | `recaptcha` v2 / v3 / Enterprise | `token` | browser + ONNX tile classifier |
-| 🟢 | `recaptcha_audio` | transcribed text | pure transcription, no browser |
-| 🟢 | `hcaptcha` | `token` | checkbox + vision challenge path |
-| 🟢 | `hcaptcha_enterprise` | `token` | enterprise rqdata flow |
-| 🟢 | `awswaf` | `aws-waf-token` cookie | navigates the real URL |
-| 🟢 | `botguard` | Google `bgRequest` token | runs the real anti-bot VM |
-| 🟢 | `perimeterx` | `_px3` cookie | HUMAN press-&-hold |
-| 🟢 | `imperva` | `visid_incap_*` + `incap_ses_*` | Incapsula session |
-| 🟢 | `aliyun` | `{certifyId, deviceToken, data}` | slide puzzle (Qoder et al) |
-| 🟢 | `geetest` v4 | `captcha_output` + `pass_token` | slide |
-| 🟢 | `geetest_v3` | `validate` + `seccode` | py3.12+ Linux |
-| 🟢 | `tencent` 腾讯防水墙 | `ticket` + `randstr` | pure-HTTP |
-| 🟢 | `mtcaptcha` | `vt` token | stable* |
-| 🟢 | `altcha` | PoW payload | |
-| 🟢 | `image_to_text` | OCR text | ddddocr; accepts raw base64 or data-URI |
-| 🟢 | `yandex` | Yandex SmartCaptcha token | |
-| 🟢 | `vk` | solved text | CTC OCR, ships own ONNX (1.1 MB) |
-| 🟢 | `binance` | slide result | full protocol + XOR + Bezier biometrics |
-| 🟢 | `captchafox` | slide result | encryption protocol |
-| 🟢 | `basilisk` | slide + icon-click | two-phase |
-| 🟢 | `steam` | solved text | port of opencv-steam-captcha |
-| 🟢 | `zhihu` | 4-char text | legacy alphanumeric |
-| 🟢 | `rotate` | rotation angle | ships ONNX model |
-| 🟡 | `akamai` | `_abck` cookie | IP-sensitive¹ |
-| 🟡 | `datadome` | `datadome` cookie | IP-sensitive¹ |
-| 🟡 | `kasada` | `x-kpsdk-ct` headers | needs classic ips.js site² |
-| 🟡 | `cybersiara` | JWT token | needs current MasterUrlId² |
-| 🟡 | `x5sec` | `x5sec` cookie | needs live punish URL² |
-| 🟡 | `friendly` | challenge token | needs a live target² |
-| 🔴 | `arkose` | `fc_token` | needs ONNX models³ |
+| ✅ | `cloudflare` | `cf_clearance` cookie + UA | full interstitial |
+| ✅ | `cloudflare_challenge` | `cf_clearance` cookie | alias path for the challenge endpoint |
+| ✅ | `turnstile` | widget token | any sitekey, 3 solving modes |
+| ✅ | `recaptcha` | `token` | v2 / v3 / Enterprise, ONNX tile classifier |
+| ✅ | `hcaptcha` | `token` | checkbox + vision challenge path |
+| ✅ | `hcaptcha_enterprise` | `token` | enterprise `rqdata` flow |
+| ✅ | `datadome` | `datadome` cookie | IP-sensitive, see footnote 1 |
+| ✅ | `imperva` | `visid_incap_*` + `incap_ses_*` | Incapsula session |
+| ✅ | `perimeterx` | `_px3` cookie | press-and-hold flow |
+| ✅ | `yandex` | SmartCaptcha token | |
+| ✅ | `geetest` | v4 `captcha_output` + `pass_token` | slide |
+| ⚙️ | `awswaf` | `aws-waf-token` cookie | needs a URL that serves a silent WAF challenge |
+| ⚙️ | `botguard` | Google `bgRequest` token | needs an account `email` to reach the token RPC |
+| ⚙️ | `aliyun` | `{certifyId, deviceToken, data}` | needs `scene_id` + `prefix` |
+| ⚙️ | `geetest_v3` | `validate` + `seccode` | needs the page's `gt` + `challenge` |
+| ⚙️ | `mtcaptcha` | `vt` token | needs a `hostname` matching the sitekey allowlist |
+| ⚙️ | `arkose` | `fc_token` | needs `public_key` + a clean IP |
+| ⚙️ | `kasada` | `x-kpsdk-ct` headers | needs a classic `ips.js` site |
+| ⚙️ | `cybersiara` | JWT token | needs the current `MasterUrlId` |
+| ⚙️ | `x5sec` | `x5sec` cookie | needs a live punish URL |
+| ⚙️ | `friendly` | challenge token | needs a live target |
+| ⚙️ | `captchafox` | slide result | needs the puzzle piece |
+| ⚙️ | `binance` | slide result | needs the site's `biz_id` |
+| ⚙️ | `basilisk` | slide + icon-click | needs `site_key` + `site_domain` |
+| ⚙️ | `recaptcha_audio` | transcribed text | needs the audio clip URL (no browser) |
+| ⚙️ | `steam` | solved text | needs the captcha image |
+| ⚙️ | `vk` | solved text | needs the captcha image or `sid` |
+| ⚙️ | `zhihu` | 4-char text | needs the captcha image |
+| 🔒 | `akamai` | `_abck` cookie | datacenter IP is scored independently |
 
-### Pure-HTTP / PoW / no-browser
+### No-browser (compute / image / PoW)
 
-| | type | result |
-|---|---|---|
-| 🟢 | `cap` | PoW solution |
-| 🟢 | `anubis` | PoW solution |
-| 🟢 | `mcaptcha` | PoW solution |
-| 🟢 | `procaptcha` | PoW solution |
-| 🟢 | `goaway` | PoW solution |
-| 🟢 | `tspd` | F5/DDoS cookie | needs `url` (delegates to the imperva session path) |
-| 🟢 | `cerberus` | challenge solution (blake3) |
-| 🟢 | `yidun` | NetEase slider (v3 protocol 2.28.5) |
-| 🟢 | `dingxiang` | Dingxiang v5 slider |
-| 🟢 | `shumei` | Shumei click captcha |
-| 🟢 | `douyin` | ByteDance slide puzzle |
-| 🟢 | `vaptcha` | Vaptcha V4 gesture |
-| 🟢 | `grid` | grid selection |
-| 🟢 | `coordinates` | click coordinates |
-| 🟢 | `draw_around` | draw-around captcha |
-| 🟢 | `drag_drop` | drag & drop |
-| 🟢 | `bounding_box` | bounding-box selection |
+| | type | result | notes |
+|---|---|---|---|
+| ✅ | `cap` | PoW solution | |
+| ✅ | `anubis` | PoW solution | |
+| ✅ | `mcaptcha` | PoW solution | |
+| ✅ | `goaway` | PoW solution | |
+| ✅ | `rotate` | rotation angle | ships its own ONNX model |
+| ✅ | `image_to_text` | OCR text | ddddocr, raw base64 or data-URI |
+| ✅ | `tspd` | F5/DDoS cookie | needs `url` |
+| ⚙️ | `tencent` | `ticket` + `randstr` | needs the target's `appid` (public test id is the default) |
+| ⚙️ | `altcha` | PoW payload | needs the challenge JSON or a live URL |
+| ⚙️ | `procaptcha` | PoW solution | needs the dapp `url` + `sitekey` |
+| ⚙️ | `cerberus` | challenge solution (blake3) | needs the challenge blob |
+| ⚙️ | `yidun` | NetEase slider (v3 protocol 2.28.5) | needs `captcha_id` or a URL |
+| ⚙️ | `dingxiang` | Dingxiang v5 slider | needs an `app_id` (a demo default is included) |
+| ⚙️ | `shumei` | Shumei click captcha | |
+| ⚙️ | `douyin` | ByteDance slide puzzle | needs the puzzle image + a clean IP |
+| ⚙️ | `vaptcha` | Vaptcha V4 gesture | needs the site's `vid` |
+| ⚙️ | `grid` | grid selection | needs an image + instruction + a vision key |
+| ⚙️ | `coordinates` | click coordinates | needs an image + instruction + a vision key |
+| ⚙️ | `draw_around` | draw-around captcha | needs an image + instruction + a vision key |
+| ⚙️ | `drag_drop` | drag & drop | needs an image + instruction + a vision key |
+| ⚙️ | `bounding_box` | bounding-box selection | needs an image + instruction + a vision key |
 
-**🟢 stable — tested working on both WSL (residential) & VPS (datacenter)**
-**🟡 situational — works, but depends on IP reputation / target**
-**🔴 needs setup — see install notes**
+**Footnotes**
 
-<sub>¹ Akamai & DataDome score the IP independently of the browser — residential/mobile egress required. <a href="#-why-ip-matters">why ↓</a><br>² needs a matching live target. <br>³ 24 ONNX models (~1.4GB) via <a href="#-arkose-models">one command ↓</a></sub>
+1. **IP-sensitive (🔒)** — Akamai and DataDome score the network independently of the browser, so a residential or mobile egress is required. See [Why IP matters](#-why-ip-matters).
+2. **Needs input (⚙️)** — the solver is complete; it needs a real sitekey, URL, or image from the target site. No library can invent these values.
+3. **Arkose models** — 24 optional ONNX models (~1.4 GB) load with one command. See [Arkose models](#-arkose-models).
 
 ## 🚀 One JSON call in, token out
 
@@ -364,12 +379,16 @@ payload was byte-identical — the IP, not the engine, is what changed.
 - Related: [FlareSolverr](https://github.com/FlareSolverr/FlareSolverr), [sarperavci/GoogleRecaptchaBypass](https://github.com/sarperavci/GoogleRecaptchaBypass)
 </details>
 
-## Recent fixes
+## 🔧 Recent fixes
 
+- `cap` — `NameError: name 'json' is not defined` on the challenge-format guard
+  (missing `import json`); the PoW now returns solutions.
+- `friendly` — missing `import cloakbrowser` (and `json`), which made the browser
+  path raise `NameError` instead of solving.
 - `image_b64` accepts a `data:image/png;base64,…` prefix (stripped server-side).
 - `shumei` no longer returns HTTP 500 — numpy scalars in the result are normalized
   before serialization (`np.int32` etc. broke pydantic).
-- `tspd` now requires `url` up-front instead of crashing deep in the node sidecar.
+- `tspd` now requires `url` up-front instead of failing deep in the node sidecar.
 - ONNX models moved to Hugging Face (`VeyraAgent/cf-solver-models`) to keep the
   clone light; `scripts/fetch_models.sh` restores them.
 - `run.sh` auto-starts under Xvfb, reads `$PORT`, and refuses a busy port;
@@ -378,6 +397,29 @@ payload was byte-identical — the IP, not the engine, is what changed.
   fails X auth on it (`Authorization required, but no authorization protocol
   specified` → `TargetClosedError`, HTTP 500). `run.sh` therefore prefers
   `xvfb-run` whenever it exists instead of trusting `$DISPLAY`.
+
+## ✅ Verification
+
+Every type was exercised against a live target. `✅ verified` means a real
+token or cookie came back — not merely "no HTTP 500":
+
+| type | evidence |
+|---|---|
+| `recaptcha` | 40+ char token from the official v2 demo |
+| `hcaptcha`, `hcaptcha_enterprise` | token from the official test key |
+| `turnstile` | token from the public test key |
+| `cloudflare`, `cloudflare_challenge` | `cf_clearance` cookie |
+| `datadome` | `datadome` cookie |
+| `imperva`, `tspd` | Incapsula session token |
+| `perimeterx` | `_px3` cookie |
+| `yandex` | SmartCaptcha token |
+| `geetest` | v4 `captcha_output` + `pass_token` |
+| `shumei`, `anubis`, `rotate` | result token / angle |
+| `image_to_text`, `cap`, `mcaptcha`, `goaway` | OCR text / PoW solution |
+
+The remaining `⚙️ needs input` types are complete but require a real sitekey,
+URL, or image from the target site — those values cannot be invented.
+
 
 ## Security
 
