@@ -14,7 +14,7 @@ One FastAPI process. One JSON call. Tokens in seconds.
 
 ![types](https://img.shields.io/badge/types-50-blueviolet) ![python](https://img.shields.io/badge/python-3.11%2B-blue) ![license](https://img.shields.io/badge/license-MIT-green) ![no--docker](https://img.shields.io/badge/docker-not--needed-9cf)
 
-**[⚡ Quick start](#-quick-start) · [🧩 Types](#-supported-types--50) · [📡 API](#-api)**
+**[⚡ Quick start](#-quick-start) · [🧩 Types](#-supported-types--50) · [✅ Verification](#-verification) · [📡 API](#-one-json-call-in-token-out)**
 
 </div>
 
@@ -117,9 +117,13 @@ Legend:
 
 **Footnotes**
 
-1. **IP-sensitive (🔒)** — Akamai and DataDome score the network independently of the browser, so a residential or mobile egress is required. See [Why IP matters](#-why-ip-matters).
-2. **Needs input (⚙️)** — the solver is complete; it needs a real sitekey, URL, or image from the target site. No library can invent these values.
-3. **Arkose models** — 24 optional ONNX models (~1.4 GB) load with one command. See [Arkose models](#-arkose-models).
+1. **IP-sensitive (🔒)** — Akamai and DataDome score the network independently of
+   the browser, so a residential or mobile egress is required. See the
+   **Why IP matters** section below.
+2. **Needs input (⚙️)** — the solver is complete; it needs a real sitekey, URL, or
+   image from the target site. No library can invent these values.
+3. **Arkose models** — 24 optional ONNX models (~1.4 GB) load with one command.
+   See the **Arkose models** section below.
 
 ## 🚀 One JSON call in, token out
 
@@ -421,12 +425,12 @@ The remaining `⚙️ needs input` types are complete but require a real sitekey
 URL, or image from the target site — those values cannot be invented.
 
 
-## Security
+## 🛡️ Security
 
 - SSRF guard on by default (`url` → private/loopback rejected `400`)
 - `/solve` navigates caller-supplied URLs — treat tokens as capabilities
 - For public exposure: reverse-proxy + token-gate `/solve` `/status` `/logs`
 
-## License
+## 📄 License
 
 MIT
