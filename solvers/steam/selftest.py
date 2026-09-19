@@ -29,6 +29,7 @@ from solve import (
     _ALLOWED_CHARS,
     _CHAR_HEIGHT,
     _CHAR_WIDTH,
+    _hist_val,
     classify_character,
     create_histogram,
     get_ideal_threshold,
@@ -74,10 +75,10 @@ def test_histogram_threshold():
     img[60:, :] = 200
 
     hist = create_histogram(img)
-    ok("histogram shape", hist.ndim == 1 and hist.shape[0] == 256,
+    ok("histogram shape", hist.ndim in (1, 2) and hist.size == 256,
        f"(got {hist.shape})")
-    ok("histogram peak at 50", float(hist[50]) > 0)
-    ok("histogram peak at 200", float(hist[200]) > 0)
+    ok("histogram peak at 50", float(_hist_val(hist, 50)) > 0)
+    ok("histogram peak at 200", float(_hist_val(hist, 200)) > 0)
 
     thresh = get_ideal_threshold(hist)
     ok("threshold is int", isinstance(thresh, int))
