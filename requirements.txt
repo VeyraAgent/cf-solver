@@ -1,0 +1,38 @@
+# Declarative manifest for reproducibility. These already live in the project venv
+# (run.sh sources it); this file documents the runtime deps, it is not auto-installed.
+fastapi
+uvicorn
+pydantic
+# PIN: 0.5.3 is the tested engine. Newer builds (0.5.10+) route .click() through a
+# humanized selector resolver that rejects frame_locator chains — breaks the
+# reCAPTCHA/hCaptcha checkbox click. Un-pin only with a full solver re-test.
+cloakbrowser==0.5.3
+# akamai sensor backend (headless V8 sensor runner — validates _abck from datacenter IPs)
+wre-client-akamai
+# kasada sensor backend (same wre runtime family — needs a real Kasada target)
+wre-client-kasada
+# altcha PoW captcha (official altcha-lib-py)
+altcha
+# cerberus (Caddy) blake3 proof-of-work — solver degrades cleanly if absent
+blake3
+# geetest v4 (geeked) + tencent core
+pycryptodome
+ddddocr
+requests
+# httpx: pure-HTTP solvers (cap, anubis, mcaptcha, binance, douyin, vaptcha)
+httpx
+curl_cffi
+pillow
+# aliyun solver gap detector: YOLOv8n ONNX (thread-limited to 2 cores) with a cv2
+# fallback. opencv-python-headless (not the GUI build — no libGL on servers).
+onnxruntime
+opencv-python-headless
+numpy
+# NOTE: scipy is deliberately NOT required — basilisk ships its own numpy-only
+# sobel/fftconvolve equivalents (verified bit-identical to scipy), which keeps
+# ~40 MB out of the image for lightweight hosts (Railway/free tiers).
+# substrate-interface: procaptcha polkadot SR25519 signing. Heavy (pulls py-scale-
+# codec etc.) — omit it on small hosts; procaptcha then fails fast, the rest works.
+substrate-interface
+bip39
+mnemonic

@@ -1,0 +1,41 @@
+# CF-Solver — lean dependency set for container deploys (Railway / Docker / Fly).
+#
+# This is requirements.txt minus the heavy, optional extras that only serve a
+# single exotic type. Everything listed here is needed by a solver that runs on
+# a datacenter IP. Add the optional block below only if you want those types.
+#
+# Install:  pip install -r requirements-docker.txt
+
+fastapi
+uvicorn
+pydantic
+
+# Browser engine (PINNED — 0.5.10+ rejects frame_locator chains and silently
+# breaks the reCAPTCHA/hCaptcha checkbox click; do not bump without a re-test).
+cloakbrowser==0.5.3
+
+# Pure-compute / pure-HTTP solvers
+altcha          # altcha PoW (official lib)
+blake3          # cerberus (Caddy) blake3 proof-of-work
+pycryptodome    # geetest v4 W-sign + tencent core
+requests
+httpx           # cap / anubis / mcaptcha / binance / douyin / vaptcha
+curl_cffi       # geetest v4 TLS-matched transport
+pillow
+onnxruntime     # aliyun gap detector + recaptcha tile classifier + rotate + vk
+opencv-python-headless
+numpy
+
+# ddddocr pulls its own onnxruntime + opencv — keep it last so the pins above win.
+ddddocr
+
+# ---------------------------------------------------------------------------
+# OPTIONAL — uncomment only if you need the corresponding type.
+# Each adds meaningful image size / build time.
+# ---------------------------------------------------------------------------
+# wre-client-akamai      # akamai  (headless V8 sensor; ~200 MB)
+# wre-client-kasada      # kasada  (same runtime family)
+# substrate-interface    # procaptcha (polkadot SR25519; pulls py-scale-codec)
+# bip39
+# mnemonic
+# scikit-learn           # steam model TRAINING only (inference needs no sklearn)

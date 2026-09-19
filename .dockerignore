@@ -1,0 +1,44 @@
+# Build context exclusions — keeps the image small AND keeps secrets out.
+# The build context is sent to the Docker daemon, so anything here never
+# reaches the image even if it exists in the working tree.
+
+# git / vcs
+.git
+.gitignore
+
+# SECRETS — never bake these into an image layer
+proxies.txt
+solvers/common/apikey.txt
+.env
+*.env
+config.json
+*tokens*.json
+.solver-token*
+
+# python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.pytest_cache/
+
+# node (imperva sidecar is built separately; the lean image omits it)
+**/node_modules/
+
+# heavy / optional models (arkose is ~1.4 GB and downloaded on demand)
+solvers/arkose/models/
+solvers/recaptcha_audio/models/
+
+# runtime artifacts + diagnostics
+artifacts/
+user_data/
+*.log
+re-tools/
+
+# local backups / editor junk
+*.tar.gz
+*.bak
+.idea/
+.vscode/
+.DS_Store

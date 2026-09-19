@@ -1,0 +1,47 @@
+# python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.pytest_cache/
+
+# runtime temp files
+solvers/tencent/_tmp_eval.js
+solvers/tencent/_tdc_tmp.js
+
+# secrets & tokens
+proxies.txt
+solvers/common/apikey.txt
+.env
+*.env
+config.json
+*tokens*.json
+.solver-token*
+
+# browser artifacts
+user_data/
+*.log
+# solver diagnostics dumps (contain client URLs/cookies — never commit)
+artifacts/
+
+# heavy models — live on Hugging Face: VeyraAgent/cf-solver-models
+# restore with ./scripts/fetch_models.sh
+*.onnx
+solvers/arkose/models/
+solvers/recaptcha_audio/models/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+
+# misc junk
+re-tools/
+
+**/node_modules/
+# whisper model cache (recaptcha_audio)
+solvers/recaptcha_audio/models/
+
+# stray eval scratch
+_tmp_eval.js
