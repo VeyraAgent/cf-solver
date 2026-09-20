@@ -196,6 +196,14 @@ class SolveRequest(BaseModel):
                      examples=["https://target.com"])
     vid: Optional[str] = Field(None, description="vaptcha only: the site's Vaptcha VID (24-hex). "
                           "Alias of `sitekey` for type=vaptcha.", examples=["5f8f5c2e9d3b4a1e8c7f6d5b"])
+    site_key: Optional[str] = Field(None, description="basilisk only: alias of `sitekey`.")
+    site_domain: Optional[str] = Field(None, description="basilisk only: alias of `page_url`.")
+    app_id: Optional[str] = Field(None, description="dingxiang only: alias of `sitekey` "
+                           "(the site's appId).", examples=["12610a3853150e888ccd0c6d4c415626"])
+    biz_id: Optional[str] = Field(None, description="binance only: alias of `action` "
+                           "(the site's bizId, e.g. \"register\").")
+    security_check_response_validate_id: Optional[str] = Field(
+        None, description="binance only: alias of `challenge` (full mode).")
 
     # All-captcha optional
     action: Optional[str] = Field(
@@ -706,15 +714,16 @@ async def _dispatch(req: SolveRequest) -> dict:
     if req.type == "binance":
         from solvers.binance.solve import solve_binance
         r = await solve_binance(image_b64=req.image_b64, image_url=req.url,
-                                 biz_id=req.action or "register",
-                                 security_check_response_validate_id=req.challenge or "",
+                                 biz_id=req.biz_id or req.action or "register",
+                                 security_check_response_validate_id=req.security_check_response_validate_id or req.challenge or "",
                                  proxy=req.proxy, timeout_s=req.timeout_s or 60)
         return {"type": "binance", **r}
 
     if req.type == "basilisk":
         from solvers.basilisk.solve import solve_basilisk
         r = await solve_basilisk(image_b64=req.image_b64, url=req.url,
-                                  site_key=req.sitekey, site_domain=req.page_url,
+                                  site_key=req.site_key or req.sitekey,
+                                  site_domain=req.site_domain or req.page_url,
                                   slide_bg_b64=req.challenge_json.get("slide_bg") if req.challenge_json else None,
                                   slide_piece_b64=req.challenge_json.get("slide_piece") if req.challenge_json else None,
                                   slide_y=req.challenge_json.get("slide_y") if req.challenge_json else None,
@@ -815,7 +824,7 @@ async def _dispatch(req: SolveRequest) -> dict:
 
     if req.type == "dingxiang":
         from solvers.dingxiang.solve import solve_dingxiang
-        r = await solve_dingxiang(app_id=req.sitekey, url=req.url,
+        r = await solve_dingxiang(app_id=req.app_id or req.sitekey, url=req.url,
                                   proxy=req.proxy, timeout_s=req.timeout_s or 90)
         return {"type": "dingxiang", **r}
 
