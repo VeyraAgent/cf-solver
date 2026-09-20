@@ -681,6 +681,8 @@ async def _dispatch(req: SolveRequest) -> dict:
         return {"type": "cerberus", **r}
 
     if req.type == "hcaptcha_enterprise":
+        if not req.url:
+            raise HTTPException(400, "url is required for type=hcaptcha_enterprise")
         from solvers.hcaptcha.solve import solve_hcaptcha_realpage
         r = await solve_hcaptcha_realpage(url=req.url, sitekey=req.sitekey,
                                            timeout_s=req.timeout_s or 120,
@@ -720,6 +722,8 @@ async def _dispatch(req: SolveRequest) -> dict:
         return {"type": "basilisk", **r}
 
     if req.type == "cloudflare_challenge":
+        if not req.url:
+            raise HTTPException(400, "url is required for type=cloudflare_challenge")
         from solvers.cloudflare.solve import solve_cf_clearance
         r = await solve_cf_clearance(url=req.url, proxy=req.proxy, timeout_s=req.timeout_s or 120)
         return {"type": "cloudflare_challenge", **r}
