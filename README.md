@@ -101,7 +101,7 @@ Legend:
 | ✅ | `image_to_text` | OCR text | ddddocr, raw base64 or data-URI |
 | ✅ | `tspd` | F5/DDoS cookie | needs `url` |
 | ✅ | `altcha` | PoW payload | official altcha-lib; verified with a generated challenge |
-| ⚙️ | `tencent` | `ticket` + `randstr` | needs the target's `appid` (public test id is the default) |
+| ✅ | `tencent` | `ticket` + `randstr` | verified with the public test appid (pure-HTTP) |
 | ⚙️ | `procaptcha` | PoW solution | needs the dapp `url` + `sitekey` |
 | ✅ | `cerberus` | challenge solution (blake3) | verified with a generated challenge |
 | ✅ | `yidun` | NetEase slider (v3 protocol 2.28.5) | verified with the demo captchaId |
@@ -385,6 +385,9 @@ payload was byte-identical — the IP, not the engine, is what changed.
 
 ## 🔧 Recent fixes
 
+- `tencent` used a dead API host (`https://t.captcha.qq.com` now returns 403),
+  so `do_prehandle` failed with "prehandle 响应解析失败". Switched to the live
+  host `https://turing.captcha.qcloud.com` (200, valid JSONP).
 - Vision model was `mistral-medium-latest`, which returns HTTP 429 for every
   key in the pool — so all vision types (`grid`/`coordinates`/`draw_around`/
   `drag_drop`/`bounding_box`) and the recaptcha/hcaptcha image classifiers
