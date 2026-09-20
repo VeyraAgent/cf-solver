@@ -25,19 +25,34 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from solve import (
-    _ALLOWED_CHARS,
-    _CHAR_HEIGHT,
-    _CHAR_WIDTH,
-    _hist_val,
-    classify_character,
-    create_histogram,
-    get_ideal_threshold,
-    hog_descriptor,
-    segment_characters,
-    simple_descriptor,
-    solve_steam,
-)
+try:
+    from .solve import (
+        _ALLOWED_CHARS,
+        _CHAR_HEIGHT,
+        _CHAR_WIDTH,
+        _hist_val,
+        classify_character,
+        create_histogram,
+        get_ideal_threshold,
+        hog_descriptor,
+        segment_characters,
+        simple_descriptor,
+        solve_steam,
+    )
+except ImportError:
+    from solve import (
+        _ALLOWED_CHARS,
+        _CHAR_HEIGHT,
+        _CHAR_WIDTH,
+        _hist_val,
+        classify_character,
+        create_histogram,
+        get_ideal_threshold,
+        hog_descriptor,
+        segment_characters,
+        simple_descriptor,
+        solve_steam,
+    )
 
 PASS = 0
 FAIL = 0
