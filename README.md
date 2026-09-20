@@ -73,7 +73,7 @@ Legend:
 | ✅ | `awswaf` | `aws-waf-token` cookie | verified against a live silent-WAF page |
 | ⚙️ | `botguard` | Google `bgRequest` token | needs an account `email` to reach the token RPC |
 | ⚙️ | `aliyun` | `{certifyId, deviceToken, data}` | needs `scene_id` + `prefix` |
-| ⚙️ | `geetest_v3` | `validate` + `seccode` | needs the page's `gt` + `challenge`; the `bili_ticket_gt_python` Rust binding now builds via `scripts/build_geetest_v3.sh` (no root) |
+| ✅ | `geetest_v3` | `validate` + `seccode` | click-type v3 (bilibili). Pass `gt`+`challenge`, a `register_url`, or nothing (auto-fetches a live pair). Binding builds via `scripts/build_geetest_v3.sh` |
 | ✅ | `mtcaptcha` | `vt` token | verified with MTCaptcha's public demo sitekey |
 | ⚙️ | `arkose` | `fc_token` | needs `public_key` + a clean IP |
 | ⚙️ | `kasada` | `x-kpsdk-ct` headers | needs a classic `ips.js` site |
@@ -392,10 +392,13 @@ payload was byte-identical — the IP, not the engine, is what changed.
 - `steam` selftest used `from solve import …` (absolute), so importing it as
   `solvers.steam.selftest` failed. Now tries the relative import first. 45/45
   checks pass both ways.
-- `geetest_v3` needs the `bili_ticket_gt_python` Rust binding, which has no
-  cp311 wheel and needs OpenSSL headers. Added `scripts/build_geetest_v3.sh`
-  (no root: extracts libssl-dev from the .deb into a local prefix) and wired it
-  into `install.sh`. Binding now builds cleanly; the type loads and runs.
+- `geetest_v3` is now **end-to-end verified** (click-type, bilibili): it can take
+  `gt`+`challenge`, a `register_url`, or nothing at all — when omitted it
+  auto-fetches a live pair from bilibili's public register endpoint. Uses
+  `simple_match_retry` and retries with a fresh challenge. Added
+  `solvers/geetest_v3/selftest.py` (6 checks, live solve). The
+  `bili_ticket_gt_python` Rust binding builds via `scripts/build_geetest_v3.sh`
+  (no root: extracts libssl-dev from the .deb into a local prefix).
 - `kasada`'s `wre-client-kasada` backend is installed (was missing → the type
   failed with "not installed").
 - Documented `awswaf` and `binance` as verified (both solved against live

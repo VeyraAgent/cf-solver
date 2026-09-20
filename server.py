@@ -276,6 +276,7 @@ class SolveRequest(BaseModel):
     challenge_json: Optional[dict] = Field(None, description="altcha: pass the challenge JSON directly (skips fetching from `url`).")
     gt: Optional[str] = Field(None, description="geetest v3: the gt key from the target page (register call).")
     challenge: Optional[str] = Field(None, description="geetest v3: the challenge string from the target page.")
+    register_url: Optional[str] = Field(None, description="geetest v3: the page's register endpoint to auto-fetch a fresh gt+challenge (used when gt/challenge are omitted). Default = bilibili's public endpoint.")
     image_b64: Optional[str] = Field(None, description="image_to_text: base64-encoded captcha image (data-URI prefix accepted).")
     masterurl_id: Optional[str] = Field(None, description="cybersiara: the site's MasterUrlId. Default = CyberSiara's demo id.")
     user_agent: Optional[str] = Field(None, description="imperva: optional User-Agent override for the sensor session (cookies are UA-bound — keep the same UA on replay).")
@@ -912,7 +913,7 @@ async def _dispatch(req: SolveRequest) -> dict:
     if req.type == "geetest_v3":
         from solvers.geetest_v3.solve import solve_geetest_v3
         r = await solve_geetest_v3(req.gt or req.captcha_id or "", req.challenge or "",
-                                   req.timeout_s or 90)
+                                   req.timeout_s or 90, register_url=req.register_url)
         return {"type": "geetest_v3", **r}
 
     if req.type == "image_to_text":
