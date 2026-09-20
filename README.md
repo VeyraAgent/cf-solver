@@ -70,10 +70,10 @@ Legend:
 | ✅ | `perimeterx` | `_px3` cookie | press-and-hold flow |
 | ✅ | `yandex` | SmartCaptcha token | |
 | ✅ | `geetest` | v4 `captcha_output` + `pass_token` | slide |
-| ⚙️ | `awswaf` | `aws-waf-token` cookie | needs a URL that serves a silent WAF challenge |
+| ✅ | `awswaf` | `aws-waf-token` cookie | verified against a live silent-WAF page |
 | ⚙️ | `botguard` | Google `bgRequest` token | needs an account `email` to reach the token RPC |
 | ⚙️ | `aliyun` | `{certifyId, deviceToken, data}` | needs `scene_id` + `prefix` |
-| ⚙️ | `geetest_v3` | `validate` + `seccode` | needs the page's `gt` + `challenge` **and** the `bili_ticket_gt_python` Rust binding (often unbuildable — see install.sh) |
+| ⚙️ | `geetest_v3` | `validate` + `seccode` | needs the page's `gt` + `challenge`; the `bili_ticket_gt_python` Rust binding now builds via `scripts/build_geetest_v3.sh` (no root) |
 | ✅ | `mtcaptcha` | `vt` token | verified with MTCaptcha's public demo sitekey |
 | ⚙️ | `arkose` | `fc_token` | needs `public_key` + a clean IP |
 | ⚙️ | `kasada` | `x-kpsdk-ct` headers | needs a classic `ips.js` site |
@@ -81,7 +81,7 @@ Legend:
 | ⚙️ | `x5sec` | `x5sec` cookie | needs a live punish URL |
 | ⚙️ | `friendly` | challenge token | needs a live target |
 | ⚙️ | `captchafox` | slide result | needs the puzzle piece |
-| ⚙️ | `binance` | slide result | needs the site's `biz_id` |
+| ✅ | `binance` | slide result | verified with the slide endpoint (`biz_id`) |
 | ⚙️ | `basilisk` | slide + icon-click | needs `site_key` + `site_domain` |
 | ⚙️ | `recaptcha_audio` | transcribed text | needs the audio clip URL (no browser) |
 | ⚙️ | `steam` | solved text | needs the captcha image |
@@ -384,6 +384,18 @@ payload was byte-identical — the IP, not the engine, is what changed.
 </details>
 
 ## 🔧 Recent fixes
+
+- `steam` selftest used `from solve import …` (absolute), so importing it as
+  `solvers.steam.selftest` failed. Now tries the relative import first. 45/45
+  checks pass both ways.
+- `geetest_v3` needs the `bili_ticket_gt_python` Rust binding, which has no
+  cp311 wheel and needs OpenSSL headers. Added `scripts/build_geetest_v3.sh`
+  (no root: extracts libssl-dev from the .deb into a local prefix) and wired it
+  into `install.sh`. Binding now builds cleanly; the type loads and runs.
+- `kasada`'s `wre-client-kasada` backend is installed (was missing → the type
+  failed with "not installed").
+- Documented `awswaf` and `binance` as verified (both solved against live
+  targets during a full 50-type sweep).
 
 - Several documented params were absent from `SolveRequest`, so requests using
   them were silently dropped (the solver then reported "required"). Added
