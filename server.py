@@ -202,6 +202,12 @@ class SolveRequest(BaseModel):
                            "(the site's appId).", examples=["12610a3853150e888ccd0c6d4c415626"])
     biz_id: Optional[str] = Field(None, description="binance only: alias of `action` "
                            "(the site's bizId, e.g. \"register\").")
+    sid: Optional[str] = Field(None, description="vk only: alias of `challenge` "
+                         "(the VK captcha session id).")
+    audio_url: Optional[str] = Field(None, description="recaptcha_audio only: alias of `url` "
+                             "(the audio clip URL).")
+    audio_b64: Optional[str] = Field(None, description="recaptcha_audio only: alias of `image_b64` "
+                             "(the audio clip, base64).")
     security_check_response_validate_id: Optional[str] = Field(
         None, description="binance only: alias of `challenge` (full mode).")
 
@@ -670,7 +676,8 @@ async def _dispatch(req: SolveRequest) -> dict:
 
     if req.type == "recaptcha_audio":
         from solvers.recaptcha_audio.solve import solve_recaptcha_audio
-        r = await solve_recaptcha_audio(audio_url=req.url, audio_b64=req.image_b64,
+        r = await solve_recaptcha_audio(audio_url=req.audio_url or req.url,
+                                        audio_b64=req.audio_b64 or req.image_b64,
                                         proxy=req.proxy, timeout_s=req.timeout_s or 90)
         return {"type": "recaptcha_audio", **r}
 
@@ -742,7 +749,7 @@ async def _dispatch(req: SolveRequest) -> dict:
     if req.type == "vk":
         from solvers.vk.solve import solve_vk
         r = await solve_vk(image_b64=req.image_b64, image_url=req.url,
-                            sid=req.challenge, s=req.cdata,
+                            sid=req.sid or req.challenge, s=req.cdata,
                             proxy=req.proxy, timeout_s=req.timeout_s or 30)
         return {"type": "vk", **r}
 
