@@ -73,7 +73,7 @@ Legend:
 | ⚙️ | `awswaf` | `aws-waf-token` cookie | needs a URL that serves a silent WAF challenge |
 | ⚙️ | `botguard` | Google `bgRequest` token | needs an account `email` to reach the token RPC |
 | ⚙️ | `aliyun` | `{certifyId, deviceToken, data}` | needs `scene_id` + `prefix` |
-| ⚙️ | `geetest_v3` | `validate` + `seccode` | needs the page's `gt` + `challenge` |
+| ⚙️ | `geetest_v3` | `validate` + `seccode` | needs the page's `gt` + `challenge` **and** the `bili_ticket_gt_python` Rust binding (often unbuildable — see install.sh) |
 | ✅ | `mtcaptcha` | `vt` token | verified with MTCaptcha's public demo sitekey |
 | ⚙️ | `arkose` | `fc_token` | needs `public_key` + a clean IP |
 | ⚙️ | `kasada` | `x-kpsdk-ct` headers | needs a classic `ips.js` site |
@@ -109,11 +109,11 @@ Legend:
 | ✅ | `shumei` | Shumei click captcha | verified with the official trial org |
 | ⚙️ | `douyin` | ByteDance slide puzzle | needs the puzzle image + a clean IP |
 | ⚙️ | `vaptcha` | Vaptcha V4 gesture | needs the site's `vid` |
-| ✅ | `grid` | grid selection | vision verified (pixtral); needs an image + instruction |
-| ✅ | `coordinates` | click coordinates | vision verified (pixtral); needs an image + instruction |
-| ✅ | `draw_around` | draw-around captcha | vision verified (pixtral); needs an image + instruction |
-| ✅ | `drag_drop` | drag & drop | vision verified (pixtral); needs an image + instruction |
-| ✅ | `bounding_box` | bounding-box selection | vision verified (pixtral); needs an image + instruction |
+| ✅ | `grid` | grid selection | vision verified (pixtral); needs `image_b64` + `action` (the text instruction) |
+| ✅ | `coordinates` | click coordinates | vision verified (pixtral); needs `image_b64` + `action` |
+| ✅ | `draw_around` | draw-around captcha | vision verified (pixtral); needs `image_b64` + `action` |
+| ✅ | `drag_drop` | drag & drop | vision verified (pixtral); needs `image_b64` + `action` |
+| ✅ | `bounding_box` | bounding-box selection | vision verified (pixtral); needs `image_b64` + `action` |
 
 **Footnotes**
 
