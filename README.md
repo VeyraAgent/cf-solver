@@ -74,7 +74,7 @@ Legend:
 | ⚙️ | `botguard` | Google `bgRequest` token | needs an account `email` to reach the token RPC |
 | ⚙️ | `aliyun` | `{certifyId, deviceToken, data}` | needs `scene_id` + `prefix` |
 | ⚙️ | `geetest_v3` | `validate` + `seccode` | needs the page's `gt` + `challenge` |
-| ⚙️ | `mtcaptcha` | `vt` token | needs a `hostname` matching the sitekey allowlist |
+| ✅ | `mtcaptcha` | `vt` token | verified with MTCaptcha's public demo sitekey |
 | ⚙️ | `arkose` | `fc_token` | needs `public_key` + a clean IP |
 | ⚙️ | `kasada` | `x-kpsdk-ct` headers | needs a classic `ips.js` site |
 | ⚙️ | `cybersiara` | JWT token | needs the current `MasterUrlId` |
@@ -103,8 +103,8 @@ Legend:
 | ✅ | `altcha` | PoW payload | official altcha-lib; verified with a generated challenge |
 | ⚙️ | `tencent` | `ticket` + `randstr` | needs the target's `appid` (public test id is the default) |
 | ⚙️ | `procaptcha` | PoW solution | needs the dapp `url` + `sitekey` |
-| ⚙️ | `cerberus` | challenge solution (blake3) | needs the challenge blob |
-| ⚙️ | `yidun` | NetEase slider (v3 protocol 2.28.5) | needs `captcha_id` or a URL |
+| ✅ | `cerberus` | challenge solution (blake3) | verified with a generated challenge |
+| ✅ | `yidun` | NetEase slider (v3 protocol 2.28.5) | verified with the demo captchaId |
 | ⚙️ | `dingxiang` | Dingxiang v5 slider | needs an `app_id` (a demo default is included) |
 | ⚙️ | `shumei` | Shumei click captcha | |
 | ⚙️ | `douyin` | ByteDance slide puzzle | needs the puzzle image + a clean IP |
@@ -385,6 +385,9 @@ payload was byte-identical — the IP, not the engine, is what changed.
 
 ## 🔧 Recent fixes
 
+- `yidun` ignored the documented `captcha_id` field — the dispatch read the
+  captchaId from `sitekey` only, so a request with `captcha_id` failed with
+  "captcha_id or url is required". Now reads `captcha_id or sitekey`.
 - `cap` / `anubis` returned HTTP 500 — `SolveResponse.token` only accepted
   `str | dict`, but `cap` returns a **list of int** and `anubis`/`goaway` return
   an **int nonce** (`ResponseValidationError`). The field now accepts
@@ -428,6 +431,9 @@ token or cookie came back — not merely "no HTTP 500":
 | `shumei`, `anubis`, `rotate` | result token / angle |
 | `image_to_text`, `cap`, `mcaptcha`, `goaway`, `altcha` | OCR text / PoW solution |
 | `zhihu` | solved a live zhihu.com captcha image |
+| `yidun` | NetEase slider solved end-to-end (demo captchaId, gap_x=163) |
+| `mtcaptcha` | `vt` token from MTCaptcha's public demo sitekey |
+| `cerberus` | blake3 PoW solved from a generated challenge |
 | `steam`, `yidun`, `dingxiang`, `douyin`, `cerberus`, `captchafox`, `recaptcha_audio` | shipped self-tests pass (45/5/30/27/35/5/31 checks) |
 
 The remaining `⚙️ needs input` types are complete but require a real sitekey,
