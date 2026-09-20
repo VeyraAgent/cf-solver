@@ -109,11 +109,11 @@ Legend:
 | ✅ | `shumei` | Shumei click captcha | verified with the official trial org |
 | ⚙️ | `douyin` | ByteDance slide puzzle | needs the puzzle image + a clean IP |
 | ⚙️ | `vaptcha` | Vaptcha V4 gesture | needs the site's `vid` |
-| ⚙️ | `grid` | grid selection | needs an image + instruction + a vision key |
-| ⚙️ | `coordinates` | click coordinates | needs an image + instruction + a vision key |
-| ⚙️ | `draw_around` | draw-around captcha | needs an image + instruction + a vision key |
-| ⚙️ | `drag_drop` | drag & drop | needs an image + instruction + a vision key |
-| ⚙️ | `bounding_box` | bounding-box selection | needs an image + instruction + a vision key |
+| ✅ | `grid` | grid selection | vision verified (pixtral); needs an image + instruction |
+| ✅ | `coordinates` | click coordinates | vision verified (pixtral); needs an image + instruction |
+| ✅ | `draw_around` | draw-around captcha | vision verified (pixtral); needs an image + instruction |
+| ✅ | `drag_drop` | drag & drop | vision verified (pixtral); needs an image + instruction |
+| ✅ | `bounding_box` | bounding-box selection | vision verified (pixtral); needs an image + instruction |
 
 **Footnotes**
 
@@ -385,6 +385,14 @@ payload was byte-identical — the IP, not the engine, is what changed.
 
 ## 🔧 Recent fixes
 
+- Vision model was `mistral-medium-latest`, which returns HTTP 429 for every
+  key in the pool — so all vision types (`grid`/`coordinates`/`draw_around`/
+  `drag_drop`/`bounding_box`) and the recaptcha/hcaptcha image classifiers
+  failed with "no valid result from vision". Switched to `pixtral-12b-2409`
+  (200 for every key, correct answers).
+- `vaptcha` ignored the documented `vid` field — `SolveRequest` had no `vid`
+  field and the dispatch read `req.sitekey` only, so `vid` was silently
+  dropped. Added the field and read `req.vid or req.sitekey`.
 - `hcaptcha_enterprise` / `cloudflare_challenge` returned HTTP 500 when `url`
   was omitted (they were in the self-URL list, so the generic guard skipped
   them and playwright raised `Frame.goto() missing 1 required positional
