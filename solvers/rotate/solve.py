@@ -39,12 +39,8 @@ def _get_session():
     global _session
     if _session is None:
         import onnxruntime as ort
-        if not _MODEL_PATH.exists():
-            raise RuntimeError(
-                "rotate: model missing — export from 8yteDance/RotateCaptcha "
-                "rotate_model.pth (torch.onnx.export, 1x3x40x40, opset 13) or "
-                "place rotate_model.onnx next to this file")
-        _session = ort.InferenceSession(str(_MODEL_PATH))
+        from solvers.common.models import model_path as _resolve_model
+        _session = ort.InferenceSession(str(_resolve_model(_MODEL_PATH)))
     return _session
 
 

@@ -104,6 +104,19 @@ fi
 if [ -x scripts/fetch_models.sh ]; then
   say "[*] fetching ONNX models from Hugging Face…"
   ./scripts/fetch_models.sh || warn "model fetch incomplete — re-run ./scripts/fetch_models.sh"
+  # verify every required model is present so a missing one is obvious
+  miss=""
+  for f in models/siamese.onnx models/yolov11n_captcha.onnx solvers/aliyun/best.onnx \
+           solvers/geetest/models/geetest_v4_icon.onnx solvers/recaptcha/models/recaptcha_cls_s.onnx \
+           solvers/rotate/rotate_model.onnx solvers/vk/captcha_model.onnx solvers/vk/ctc_model.onnx; do
+    [ -s "$f" ] || miss="$miss $f"
+  done
+  if [ -n "$miss" ]; then
+    warn "MISSING models:$miss"
+    warn "download them with ./scripts/fetch_models.sh (from huggingface.co/VeyraAgent/cf-solver-models)"
+  else
+    ok "all 8 ONNX models present"
+  fi
 fi
 
 # ── 6. imperva node sidecar ──────────────────────────────────────────────

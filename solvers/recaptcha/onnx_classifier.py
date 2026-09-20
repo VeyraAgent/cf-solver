@@ -82,7 +82,8 @@ class OnnxClassifier:
     """Thread-limited ONNX tile classifier. Drop-in for KeyPool.classify."""
 
     def __init__(self, model_path: str = None, threshold: float = _DEFAULT_THRESHOLD):
-        self.model_path = str(model_path or _DEFAULT_MODEL)
+        from solvers.common.models import model_path as _resolve_model
+        self.model_path = str(_resolve_model(model_path or _DEFAULT_MODEL))
         self.threshold = threshold
         so = ort.SessionOptions()
         so.intra_op_num_threads = 2
@@ -201,8 +202,11 @@ def get_classifier(model_path: str = None):
     back to Mistral)."""
     global _classifier
     if _classifier is None:
-        path = Path(model_path or _DEFAULT_MODEL)
-        if not path.exists():
+        from solvers.common.models import model_path_or_none, FETCH_HINT
+        path = model_path_or_none(model_path or _DEFAULT_MODEL)
+        if path is None:
+            log.warning("recaptcha ONNX model missing at %s — %s",
+                        model_path or _DEFAULT_MODEL, FETCH_HINT)
             return None
         _classifier = OnnxClassifier(str(path))
     return _classifier

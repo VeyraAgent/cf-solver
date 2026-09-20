@@ -311,13 +311,17 @@ done
 <details>
 <summary><b>🧠 Models (Hugging Face)</b></summary>
 
-The ONNX models live in a separate repo so a `git clone` stays light:
+The ONNX models are **not in the git repo** — they live in a separate Hugging Face
+repo so a `git clone` stays light (~3.5 MB). A clone does **not** ship any `.onnx`;
+download them first:
 
 **https://huggingface.co/VeyraAgent/cf-solver-models**
 
 ```bash
 ./scripts/fetch_models.sh        # public — no token needed
 ```
+
+If a solver reports *"model missing"*, this is why — run the command above.
 
 | model | size | used by |
 |---|---|---|
