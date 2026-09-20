@@ -75,13 +75,17 @@ if pip install -q -r requirements.txt 2>/dev/null; then
   ok "python deps"
 else
   warn "full requirements failed (geetest_v3 needs a Rust build on py<3.12)"
-  if ask "build the geetest_v3 binding from source (needs Rust, ~5 min)?"; then
-    command -v cargo >/dev/null || { curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y -q; . "$HOME/.cargo/env"; }
-    $SUDO apt-get install -y -qq libssl-dev pkg-config 2>/dev/null || warn "install libssl-dev + pkg-config manually"
-    pip install -q -r requirements.txt && ok "python deps (incl. geetest_v3)"
+  # Install everything except the Rust binding first, so the server is usable.
+  grep -v "bili_ticket_gt_python" requirements.txt > /tmp/cf_req.txt
+  pip install -q -r /tmp/cf_req.txt && ok "python deps (geetest_v3 pending)"
+  if ask "build the geetest_v3 binding now (needs Rust, ~2 min, no root)?"; then
+    if bash scripts/build_geetest_v3.sh "$(command -v python)"; then
+      ok "python deps (incl. geetest_v3)"
+    else
+      warn "geetest_v3 binding build failed — that type fails fast, everything else works"
+    fi
   else
-    grep -v "bili_ticket_gt_python" requirements.txt > /tmp/cf_req.txt
-    pip install -q -r /tmp/cf_req.txt && ok "python deps (geetest_v3 skipped — that type fails fast)"
+    warn "geetest_v3 skipped — that type fails fast"
   fi
 fi
 
