@@ -21,9 +21,9 @@ from pathlib import Path
 log = logging.getLogger(__name__)
 
 _ENDPOINT = "https://api.mistral.ai/v1/chat/completions"
-# pixtral-12b aliases to a text model on this gateway; medium is the cheapest id
-# that actually does vision here.
-_DEFAULT_MODEL = "mistral-medium-latest"
+# pixtral-12b-2409 is the vision model that actually works on this gateway.
+# mistral-medium-latest returns 429 (rate-limited) for every key in the pool.
+_DEFAULT_MODEL = "pixtral-12b-2409"
 # Per-key failures worth rotating past; 5xx is transient (retry same key once).
 _ROTATE_STATUS = {401, 403, 429}
 _COOLDOWN_S = 60  # wall-clock park duration for a failed key

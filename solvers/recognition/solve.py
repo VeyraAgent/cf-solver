@@ -30,7 +30,7 @@ def _get_keypool():
     global _keypool
     if _keypool is None:
         from solvers.common.mistral import KeyPool
-        _keypool = KeyPool(str(_KEYFILE), model="mistral-medium-latest")
+        _keypool = KeyPool(str(_KEYFILE), model="pixtral-12b-2409")
     return _keypool
 
 

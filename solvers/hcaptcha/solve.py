@@ -38,7 +38,7 @@ def _get_keypool():
     """Lazy, shared KeyPool for hCaptcha image solving."""
     global _keypool
     if _keypool is None:
-        model = os.getenv("HCAPTCHA_MISTRAL_MODEL", "mistral-medium-latest")
+        model = os.getenv("HCAPTCHA_MISTRAL_MODEL", "pixtral-12b-2409")
         _keypool = KeyPool(str(_KEYFILE), model=model, start_index=os.getpid())
     return _keypool
 

@@ -38,7 +38,7 @@ _VALID_CLASSIFIERS = frozenset({"yolo", "mistral", "hybrid", "auto"})
 
 
 def _build_keypool():
-    model = os.getenv("RECAPTCHA_MISTRAL_MODEL", "mistral-medium-latest")
+    model = os.getenv("RECAPTCHA_MISTRAL_MODEL", "pixtral-12b-2409")
     # vary the start offset by pid so concurrent procs don't hammer key #0
     return KeyPool(str(_KEYFILE), model=model, start_index=os.getpid())
 
