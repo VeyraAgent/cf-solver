@@ -57,7 +57,7 @@ except ImportError:
 # ============================================================
 # 配置
 # ============================================================
-API_DOMAIN = "https://t.captcha.qq.com"
+API_DOMAIN = "https://turing.captcha.qcloud.com"
 DEFAULT_APPID = "199999861"
 DEFAULT_UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
