@@ -555,32 +555,36 @@ def solve_captcha(appid: str = DEFAULT_APPID, max_retries: int = 10) -> dict:
     for attempt in range(max_retries):
         success = False
         # ---- Step 1: Prehandle ----
-        ph = do_prehandle(appid)
-        sess = ph["sess"]
-        sid = ph["sid"]
-        comm_cfg = ph["data"]["comm_captcha_cfg"]
-        dyn = ph["data"]["dyn_show_info"]
-        pow_cfg = comm_cfg["pow_cfg"]
-        tdc_path = comm_cfg["tdc_path"]
+        try:
+            ph = do_prehandle(appid)
+            sess = ph["sess"]
+            sid = ph["sid"]
+            comm_cfg = ph["data"]["comm_captcha_cfg"]
+            dyn = ph["data"]["dyn_show_info"]
+            pow_cfg = comm_cfg["pow_cfg"]
+            tdc_path = comm_cfg["tdc_path"]
 
-        # 提取拼图块配置
-        piece_elem = None
-        for e in dyn["fg_elem_list"]:
-            if "data_type" in e.get("move_cfg", {}):
-                piece_elem = e
-                break
-        if not piece_elem:
-            raise ValueError("未找到拼图块元素配置")
+            # 提取拼图块配置
+            piece_elem = None
+            for e in dyn["fg_elem_list"]:
+                if "data_type" in e.get("move_cfg", {}):
+                    piece_elem = e
+                    break
+            if not piece_elem:
+                raise ValueError("未找到拼图块元素配置")
 
-        piece_size = tuple(piece_elem["size_2d"])
-        track_limit = piece_elem["move_cfg"]["track_limit"]
-        init_pos = piece_elem["init_pos"]
-        bg_size = tuple(dyn["bg_elem_cfg"]["size_2d"])
+            piece_size = tuple(piece_elem["size_2d"])
+            track_limit = piece_elem["move_cfg"]["track_limit"]
+            init_pos = piece_elem["init_pos"]
+            bg_size = tuple(dyn["bg_elem_cfg"]["size_2d"])
 
-        # ---- Step 2: 图片缺口检测 (融合 3 算法) ----
-        bg_img, sprite_img = download_images(ph)
-        gap_x = detect_gap(bg_img, sprite_img, piece_size, track_limit,
-                           init_pos, bg_size)
+            # ---- Step 2: 图片缺口检测 (融合 3 算法) ----
+            bg_img, sprite_img = download_images(ph)
+            gap_x = detect_gap(bg_img, sprite_img, piece_size, track_limit,
+                               init_pos, bg_size)
+        except Exception as exc:
+            print(f"  [重试 {attempt+1}/{max_retries}] 会话/取图失败 ({exc})，重新获取验证码...")
+            continue
         if gap_x is None:
             print(f"  [重试 {attempt+1}/{max_retries}] 缺口检测失败，重新获取验证码...")
             continue
@@ -591,7 +595,13 @@ def solve_captcha(appid: str = DEFAULT_APPID, max_retries: int = 10) -> dict:
             raise RuntimeError("PoW 求解失败")
 
         # ---- Step 4: TDC 加密 (纯 Python, 无 Node) ----
-        collect, eks = get_tdc_collect_and_eks(tdc_path)
+        # Key extraction can transiently fail (offsets insufficient) on a fresh
+        # tdc.js; retry with a new challenge instead of aborting the whole solve.
+        try:
+            collect, eks = get_tdc_collect_and_eks(tdc_path)
+        except Exception as exc:
+            print(f"  [重试 {attempt+1}/{max_retries}] TDC collect 失败 ({exc})，重新获取验证码...")
+            continue
 
         # ---- Step 5: 单次验证 (同一 sess 只允许 1 次, 多次触发风控) ----
         ans = [{
