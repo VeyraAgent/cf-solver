@@ -385,6 +385,11 @@ payload was byte-identical — the IP, not the engine, is what changed.
 
 ## 🔧 Recent fixes
 
+- Several documented params were absent from `SolveRequest`, so requests using
+  them were silently dropped (the solver then reported "required"). Added
+  aliases: `vid`→vaptcha, `site_key`/`site_domain`→basilisk,
+  `app_id`→dingxiang, `biz_id`+`security_check_response_validate_id`→binance,
+  `sid`→vk, `audio_url`/`audio_b64`→recaptcha_audio.
 - `tencent` used a dead API host (`https://t.captcha.qq.com` now returns 403),
   so `do_prehandle` failed with "prehandle 响应解析失败". Switched to the live
   host `https://turing.captcha.qcloud.com` (200, valid JSONP).
