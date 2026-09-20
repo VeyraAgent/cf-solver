@@ -194,6 +194,8 @@ class SolveRequest(BaseModel):
     url: Optional[str] = Field(None, description="Page the captcha is on (also the intercept origin). "
                      "Required for all types except botguard (which defaults to the Google sign-in page).",
                      examples=["https://target.com"])
+    vid: Optional[str] = Field(None, description="vaptcha only: the site's Vaptcha VID (24-hex). "
+                          "Alias of `sitekey` for type=vaptcha.", examples=["5f8f5c2e9d3b4a1e8c7f6d5b"])
 
     # All-captcha optional
     action: Optional[str] = Field(
@@ -833,7 +835,7 @@ async def _dispatch(req: SolveRequest) -> dict:
 
     if req.type == "vaptcha":
         from solvers.vaptcha.solve import solve_vaptcha
-        r = await solve_vaptcha(vid=req.sitekey, url=req.url,
+        r = await solve_vaptcha(vid=req.vid or req.sitekey, url=req.url,
                                 proxy=req.proxy, timeout_s=req.timeout_s or 90)
         return {"type": "vaptcha", **r}
 
