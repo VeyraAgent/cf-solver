@@ -161,7 +161,7 @@ def _base_and_referer(url: Optional[str]) -> Tuple[str, str]:
         return DEFAULT_API_BASE, DEFAULT_REFERER
     p = urlparse(url if "://" in url else f"https://{url}")
     host = (p.netloc or "").lower()
-    if "fengkongcloud" in host or "shumei" in host or p.path.startswith("/ca/"):
+    if "fengkongcloud" in host or p.path.startswith("/ca/"):
         return f"{p.scheme or 'https'}://{p.netloc}", DEFAULT_REFERER
     return DEFAULT_API_BASE, url
 
