@@ -106,7 +106,7 @@ Legend:
 | ✅ | `cerberus` | challenge solution (blake3) | verified with a generated challenge |
 | ✅ | `yidun` | NetEase slider (v3 protocol 2.28.5) | verified with the demo captchaId |
 | ⚙️ | `dingxiang` | Dingxiang v5 slider | needs an `app_id` (a demo default is included) |
-| ⚙️ | `shumei` | Shumei click captcha | |
+| ✅ | `shumei` | Shumei click captcha | verified with the official trial org |
 | ⚙️ | `douyin` | ByteDance slide puzzle | needs the puzzle image + a clean IP |
 | ⚙️ | `vaptcha` | Vaptcha V4 gesture | needs the site's `vid` |
 | ⚙️ | `grid` | grid selection | needs an image + instruction + a vision key |
@@ -400,6 +400,10 @@ payload was byte-identical — the IP, not the engine, is what changed.
   `(256,1)` histogram, so indexing gives an array, not a scalar); it now uses
   the `_hist_val` helper. 45/45 checks pass.
 - `image_b64` accepts a `data:image/png;base64,…` prefix (stripped server-side).
+- `shumei` mis-detected its API base — any host containing "shumei" was treated
+  as the captcha API host, so the official trial page (www.ishumei.com) was used
+  as the base and the solver parsed the marketing HTML. Only `fengkongcloud`
+  hosts (or a `/ca/` path) count now.
 - `shumei` no longer returns HTTP 500 — numpy scalars in the result are normalized
   before serialization (`np.int32` etc. broke pydantic).
 - `tspd` now requires `url` up-front instead of failing deep in the node sidecar.
@@ -428,7 +432,8 @@ token or cookie came back — not merely "no HTTP 500":
 | `perimeterx` | `_px3` cookie |
 | `yandex` | SmartCaptcha token |
 | `geetest` | v4 `captcha_output` + `pass_token` |
-| `shumei`, `anubis`, `rotate` | result token / angle |
+| `shumei` | click captcha solved on the official trial org (riskLevel PASS) |
+| `anubis`, `rotate` | result token / angle |
 | `image_to_text`, `cap`, `mcaptcha`, `goaway`, `altcha` | OCR text / PoW solution |
 | `zhihu` | solved a live zhihu.com captcha image |
 | `yidun` | NetEase slider solved end-to-end (demo captchaId, gap_x=163) |
