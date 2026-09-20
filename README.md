@@ -385,6 +385,10 @@ payload was byte-identical — the IP, not the engine, is what changed.
 
 ## 🔧 Recent fixes
 
+- `hcaptcha_enterprise` / `cloudflare_challenge` returned HTTP 500 when `url`
+  was omitted (they were in the self-URL list, so the generic guard skipped
+  them and playwright raised `Frame.goto() missing 1 required positional
+  argument`). They now return 400 with a clear message.
 - `yidun` ignored the documented `captcha_id` field — the dispatch read the
   captchaId from `sitekey` only, so a request with `captcha_id` failed with
   "captcha_id or url is required". Now reads `captcha_id or sitekey`.
