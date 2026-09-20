@@ -93,10 +93,10 @@ Legend:
 
 | | type | result | notes |
 |---|---|---|---|
-| ✅ | `cap` | PoW solution | |
-| ✅ | `anubis` | PoW solution | |
-| ✅ | `mcaptcha` | PoW solution | |
-| ✅ | `goaway` | PoW solution | |
+| ✅ | `cap` | PoW solution | verified with a generated challenge |
+| ✅ | `anubis` | PoW solution | verified with a generated challenge |
+| ✅ | `mcaptcha` | PoW solution | verified with a generated config |
+| ✅ | `goaway` | PoW solution | verified with a generated challenge |
 | ✅ | `rotate` | rotation angle | ships its own ONNX model |
 | ✅ | `image_to_text` | OCR text | ddddocr, raw base64 or data-URI |
 | ✅ | `tspd` | F5/DDoS cookie | needs `url` |
