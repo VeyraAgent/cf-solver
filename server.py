@@ -802,7 +802,7 @@ async def _dispatch(req: SolveRequest) -> dict:
     # ── Chinese vendor tier (pure-HTTP protocol ports) ───────────────
     if req.type == "yidun":
         from solvers.yidun.solve import solve_yidun
-        r = await solve_yidun(captcha_id=req.sitekey, url=req.url,
+        r = await solve_yidun(captcha_id=req.captcha_id or req.sitekey, url=req.url,
                               proxy=req.proxy, timeout_s=req.timeout_s or 90,
                               **({"mode": req.mode} if req.mode else {}))
         return {"type": "yidun", **r}
