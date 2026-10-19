@@ -29,10 +29,16 @@ _BILI_REGISTER = "https://passport.bilibili.com/x/passport-login/captcha?source=
 
 def available() -> bool:
     try:
+            try:
         import bili_ticket_gt_python  # noqa: F401
-        return True
-    except Exception:
-        return False
+        from bili_ticket_gt_python import ClickPy
+    except ImportError as exc:  # binding only builds on glibc>=2.38 hosts
+        raise RuntimeError(
+            "geetest_v3 is unavailable in this deployment: the bili_ticket_gt_python "
+            "Rust binding is not built here (needs a glibc>=2.38 host). Use the "
+            "GeeTest v4 solver (task=GeeTestV4TaskProxyless / captchaId) instead."
+        ) from exc
+return False
 
 
 def fetch_gt_challenge(register_url: str = _BILI_REGISTER, timeout_s: int = 20) -> tuple[str, str]:

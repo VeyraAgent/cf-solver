@@ -15,7 +15,7 @@ from urllib.parse import urlparse
 from contextlib import asynccontextmanager
 from fastapi import Body, Depends, FastAPI, HTTPException, Query
 from fastapi.security import HTTPBearer
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("captcha-solver")
@@ -183,7 +183,44 @@ class PostFetch(BaseModel):
         "solved token.", examples=[{"token": "__TOKEN__"}])
 
 
+#: 2captcha-style field names -> the engine's native names. The API (and any
+#: 2captcha-shaped client) speaks the left column, the solvers read the right.
+_FIELD_ALIASES = {
+    "websiteURL": "url",
+    "websiteKey": "sitekey",
+    "websitePublicKey": "sitekey",
+    "hostname": "url",
+    "body": "image_b64",
+    "imageUrl": "url",
+    "imageURL": "url",
+    "comment": "action",
+    "bizId": "action",
+    "validateId": "challenge",
+    "encryptedData": "challenge",
+    "audioUrl": "url",
+    "audioB64": "audio_b64",
+    "masterUrlId": "masterurl_id",
+    "pageUrl": "page_url",
+    "cData": "cdata",
+    "appId": "appid",
+    "captchaId": "captcha_id",
+    "proxy": "proxy",
+}
+
+
 class SolveRequest(BaseModel):
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_field_aliases(cls, data):
+        """Accept 2captcha-style names for the fields the solvers actually read."""
+        if not isinstance(data, dict):
+            return data
+        out = dict(data)
+        for src, dst in _FIELD_ALIASES.items():
+            if src in out and dst not in out:
+                out[dst] = out.pop(src)
+        return out
+
     # Required
     type: str = Field(..., description="Captcha type — dispatch key.",
                       examples=["turnstile"])
