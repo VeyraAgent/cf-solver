@@ -79,13 +79,20 @@ app = FastAPI(
 # the endpoint proceeds — real enforcement stays at the Caddy layer (public domain only).
 _bearer = HTTPBearer(auto_error=False, description="Bearer token (required on the public "
                      "domain; enforced by the reverse proxy). Ignored for local calls.")
-SUPPORTED = ["turnstile", "recaptcha", "hcaptcha", "cloudflare", "awswaf", "botguard", "datadome", "perimeterx", "akamai", "aliyun", "arkose", "x5sec", "tencent", "geetest", "kasada", "mtcaptcha", "altcha", "cybersiara", "imperva", "friendly", "geetest_v3", "image_to_text"] + ["cap", "anubis", "mcaptcha", "procaptcha", "rotate", "yidun", "dingxiang", "shumei", "douyin", "vaptcha", "goaway", "recaptcha_audio", "cerberus", "yandex", "hcaptcha_enterprise", "zhihu", "steam", "grid", "coordinates", "draw_around", "drag_drop", "bounding_box", "tspd", "vk", "cloudflare_challenge", "basilisk", "binance", "captchafox"]
+SUPPORTED = ["turnstile", "recaptcha", "hcaptcha", "cloudflare", "awswaf", "botguard", "datadome", "perimeterx", "akamai", "aliyun", "arkose", "x5sec", "tencent", "geetest", "kasada", "mtcaptcha", "altcha", "cybersiara", "imperva", "friendly", "geetest_v3", "image_to_text"] + ["cap", "anubis", "mcaptcha", "procaptcha", "rotate", "yidun", "dingxiang", "shumei", "douyin", "vaptcha", "goaway", "recaptcha_audio", "cerberus", "yandex", "hcaptcha_enterprise", "zhihu", "steam", "grid", "coordinates", "draw_around", "drag_drop", "bounding_box", "tspd", "vk", "cloudflare_challenge", "basilisk", "binance", "captchafox",
+             # jb/solver drop (2026-10-31): pure-HTTP v2 PoW, node WAF token,
+             # local OCR, Camoufox TRACELESS checkbox, TCaptcha slider toolkit
+             "friendly_v2", "awswaf_js", "ocr", "aliyun_traceless", "tcaptcha"]
 # Page-level solvers that harvest a cookie/token from the live page (no sitekey needed).
 _PAGE_LEVEL = ("cloudflare", "awswaf", "botguard", "datadome", "perimeterx", "akamai", "x5sec")
 # Solvers that supply their own canonical URL (caller need not pass `url`).
 # datadome is NOT here: the caller passes the DataDome-fronted url (+ referer) itself.
 _SELF_URL = ("botguard", "perimeterx", "aliyun", "arkose", "tencent", "geetest", "kasada", "mtcaptcha", "altcha", "cybersiara", "friendly", "geetest_v3", "image_to_text",
-             "cap", "anubis", "mcaptcha", "rotate", "yidun", "dingxiang", "shumei", "douyin", "vaptcha", "goaway", "recaptcha_audio", "cerberus", "yandex", "hcaptcha_enterprise", "zhihu", "steam", "grid", "coordinates", "draw_around", "drag_drop", "bounding_box", "vk", "cloudflare_challenge", "basilisk", "binance", "captchafox")
+             "cap", "anubis", "mcaptcha", "rotate", "yidun", "dingxiang", "shumei", "douyin", "vaptcha", "goaway", "recaptcha_audio", "cerberus", "yandex", "hcaptcha_enterprise", "zhihu", "steam", "grid", "coordinates", "draw_around", "drag_drop", "bounding_box", "vk", "cloudflare_challenge", "basilisk", "binance", "captchafox",
+             # friendly_v2: sitekey-only (origin optional); ocr: image-only;
+             # tcaptcha: detect mode is image-only. awswaf_js/aliyun_traceless
+             # are url-driven and stay out of this tuple.
+             "friendly_v2", "ocr", "tcaptcha")
 # Allow private/loopback targets only when explicitly opted in (dev/testing).
 _ALLOW_PRIVATE = os.getenv("SOLVER_ALLOW_PRIVATE") == "1"
 
@@ -266,6 +273,20 @@ class SolveRequest(BaseModel):
         "proxy pool (POST /pool to populate) — the response echoes `proxy_used` (host:port) so "
         "IP-bound cookies (cloudflare/datadome/akamai/imperva/awswaf/perimeterx/x5sec) can be "
         "replayed from the same IP. No env fallback — omit to solve without proxy.")
+
+    # jb/solver drop fields (2026-10-31)
+    user_selector: Optional[str] = Field(
+        None, description="aliyun_traceless: CSS for the account input "
+        "(default '#normal_login_account, input[type=text]').")
+    submit_selector: Optional[str] = Field(
+        None, description="aliyun_traceless: CSS for the submit button "
+        "(default button:has-text(\"登录\")).")
+    warmup_ms: Optional[int] = Field(
+        None, description="aliyun_traceless: idle ms between filling the form and "
+        "submitting (warm-up before the captcha is requested).")
+    flow: Optional[str] = Field(
+        None, description="tcaptcha: registered flow adapter for mode=solve "
+        "(default \"minimax-login\").")
 
     # reCAPTCHA-only
     version: Optional[str] = Field(None, description="reCAPTCHA only: v2 | v3 | invisible (default v2).")
@@ -947,6 +968,48 @@ async def _dispatch(req: SolveRequest) -> dict:
                                  timeout_s=req.timeout_s or 90)
         return {"type": "friendly", **r}
 
+    if req.type == "friendly_v2":
+        from solvers.friendly_v2.solve import solve_friendly_v2
+        r = await solve_friendly_v2(req.sitekey or "",
+                                    origin=req.page_url or req.url,
+                                    proxy=req.proxy, timeout_s=req.timeout_s or 90,
+                                    base_url=req.base_url or "https://global.frcapi.com")
+        return {"type": "friendly_v2", **r}
+
+    if req.type == "awswaf_js":
+        from solvers.awswaf_js.solve import solve_awswaf_js
+        r = await solve_awswaf_js(req.url, proxy=req.proxy,
+                                  timeout_s=req.timeout_s or 90,
+                                  challenge_url=req.challenge,
+                                  user_agent=req.user_agent)
+        return {"type": "awswaf_js", **r}
+
+    if req.type == "ocr":
+        from solvers.ocr.solve import solve_ocr
+        r = await solve_ocr(image_b64=req.image_b64,
+                            image_url=None if req.image_b64 else req.url,
+                            proxy=req.proxy, timeout_s=req.timeout_s or 60)
+        return {"type": "ocr", **r}
+
+    if req.type == "aliyun_traceless":
+        from solvers.aliyun_traceless.solve import solve_aliyun_traceless
+        r = await solve_aliyun_traceless(
+            url=req.url, username=req.email, password=req.password,
+            user_selector=req.user_selector or "#normal_login_account, input[type=text]",
+            submit_selector=req.submit_selector or 'button:has-text("登录")',
+            proxy=req.proxy, timeout_s=req.timeout_s or 180,
+            warmup_ms=req.warmup_ms or 0)
+        return {"type": "aliyun_traceless", **r}
+
+    if req.type == "tcaptcha":
+        from solvers.tcaptcha.solve import solve_tcaptcha
+        r = await solve_tcaptcha(url=req.url, mode=req.mode or "detect",
+                                 challenge_json=req.challenge_json,
+                                 proxy=req.proxy, timeout_s=req.timeout_s or 240,
+                                 flow=req.flow or "minimax-login",
+                                 email=req.email, password=req.password)
+        return {"type": "tcaptcha", **r}
+
     if req.type == "geetest_v3":
         from solvers.geetest_v3.solve import solve_geetest_v3
         r = await solve_geetest_v3(req.gt or req.captcha_id or "", req.challenge or "",
@@ -1104,6 +1167,8 @@ import secrets as _secrets
 from pathlib import Path as _Path
 
 _JOB_TTL_S = 600
+_jobs_mem: dict[str, dict] = {}
+_job_backend = None          # modal.Dict when configure_job_store() ran, else mem/disk
 
 
 def configure_job_store(backend) -> None:
@@ -1173,7 +1238,9 @@ def _precheck(req: SolveRequest) -> None:
         raise HTTPException(400, "scene_id and prefix are required for type=aliyun")
     if req.type == "arkose" and not req.public_key:
         raise HTTPException(400, "public_key is required for type=arkose")
-    if req.type not in _PAGE_LEVEL and req.type not in ("aliyun", "arkose", "tencent", "geetest", "kasada", "mtcaptcha", "altcha", "cybersiara", "imperva", "friendly", "geetest_v3", "image_to_text", "cap", "anubis", "mcaptcha", "yidun", "dingxiang", "shumei", "douyin", "vaptcha", "rotate", "goaway", "recaptcha_audio", "cerberus", "yandex", "hcaptcha_enterprise", "zhihu", "steam", "grid", "coordinates", "draw_around", "drag_drop", "bounding_box", "tspd", "vk", "cloudflare_challenge", "basilisk", "binance", "captchafox") and not req.sitekey:
+    if req.type not in _PAGE_LEVEL and req.type not in ("aliyun", "arkose", "tencent", "geetest", "kasada", "mtcaptcha", "altcha", "cybersiara", "imperva", "friendly", "geetest_v3", "image_to_text", "cap", "anubis", "mcaptcha", "yidun", "dingxiang", "shumei", "douyin", "vaptcha", "rotate", "goaway", "recaptcha_audio", "cerberus", "yandex", "hcaptcha_enterprise", "zhihu", "steam", "grid", "coordinates", "draw_around", "drag_drop", "bounding_box", "tspd", "vk", "cloudflare_challenge", "basilisk", "binance", "captchafox",
+                                         "awswaf_js", "friendly_v2", "ocr",
+                                         "aliyun_traceless", "tcaptcha") and not req.sitekey:
         raise HTTPException(400, f"sitekey is required for type={req.type}")
     _validate_urls(req)
 

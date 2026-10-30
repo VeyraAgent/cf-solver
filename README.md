@@ -2,7 +2,7 @@
 
 # 🔐 CF-Solver
 
-**Self-hosted captcha-solving sidecar — 50 challenge types, zero per-solve cost.**
+**Self-hosted captcha-solving sidecar — 55 challenge types, zero per-solve cost.**
 
 > ⚠️ **Educational purposes only.** This project exists to study how anti-bot
 > challenges work and to test automation research in a controlled setting.
@@ -12,9 +12,9 @@
 
 One FastAPI process. One JSON call. Tokens in seconds.
 
-![types](https://img.shields.io/badge/types-50-blueviolet) ![python](https://img.shields.io/badge/python-3.11%2B-blue) ![license](https://img.shields.io/badge/license-MIT-green) ![no--docker](https://img.shields.io/badge/docker-not--needed-9cf)
+![types](https://img.shields.io/badge/types-55-blueviolet) ![python](https://img.shields.io/badge/python-3.11%2B-blue) ![license](https://img.shields.io/badge/license-MIT-green) ![no--docker](https://img.shields.io/badge/docker-not--needed-9cf)
 
-**[⚡ Quick start](#-quick-start) · [🧩 Types](#-supported-types--50) · [✅ Verification](#-verification) · [📡 API](#-one-json-call-in-token-out)**
+**[⚡ Quick start](#-quick-start) · [🧩 Types](#-supported-types--55) · [✅ Verification](#-verification) · [📡 API](#-one-json-call-in-token-out)**
 
 </div>
 
@@ -47,7 +47,7 @@ curl -s -X POST http://localhost:8877/solve -H 'Content-Type: application/json' 
 > `WITH_ARKOSE=1 ./install.sh` to also pull the optional 1.4 GB Arkose models.
 
 
-## 🧩 Supported types — 50
+## 🧩 Supported types — 55
 
 Legend:
 
@@ -75,6 +75,7 @@ Legend:
 | ⚙️ | `aliyun` | `{certifyId, deviceToken, data}` | needs `scene_id` + `prefix` |
 | ✅ | `geetest_v3` | `validate` + `seccode` | click-type v3 (bilibili). Pass `gt`+`challenge`, a `register_url`, or nothing (auto-fetches a live pair). Binding builds via `scripts/build_geetest_v3.sh` |
 | ✅ | `mtcaptcha` | `vt` token | verified with MTCaptcha's public demo sitekey |
+| ⚙️ | `aliyun_traceless` | `验证通过` + session token | Aliyun TRACELESS checkbox (no puzzle). Camoufox + humanised pointer; needs the host login form (`url`, `email`, `password`, optional `user_selector`/`submit_selector`). 4/5 on the reference site — throttle ≥30 s and rotate IPs |
 | ⚙️ | `arkose` | `fc_token` | needs `public_key` + a clean IP |
 | ⚙️ | `kasada` | `x-kpsdk-ct` headers | needs a classic `ips.js` site |
 | ⚙️ | `cybersiara` | JWT token | needs the current `MasterUrlId` |
@@ -102,6 +103,10 @@ Legend:
 | ✅ | `tspd` | F5/DDoS cookie | needs `url` |
 | ✅ | `altcha` | PoW payload | official altcha-lib; verified with a generated challenge |
 | ✅ | `tencent` | `ticket` + `randstr` | verified with the public test appid (pure-HTTP) |
+| ✅ | `friendly_v2` | `frc-captcha-response` (redeem token) | Friendly Captcha **v2**: pure-HTTP activate→quote→PoW→redeem, node multi-core BLAKE2s engine, compressed telemetry signals |
+| ✅ | `awswaf_js` | `aws-waf-token` | AWS WAF challenge solved **in Node** (no browser): gokuProps binding, aes-256-gcm `Zoey` signal, SHA256/bandwidth PoW |
+| ✅ | `ocr` | solved text | local CTC model (ddddocr, or the vendored ONNX copy in `solvers/ocr/models/`) |
+| ⚙️ | `tcaptcha` | drag distance (`dx`) / flow verdict | Tencent TCaptcha slider: `mode=detect` runs the 5-detector 8px consensus on `bg_b64`+`fg_b64`+`piece` (no browser); `mode=solve` drives a registered browser flow (`flow`, needs creds) |
 | ⚙️ | `procaptcha` | PoW solution | needs the dapp `url` + `sitekey` |
 | ✅ | `cerberus` | challenge solution (blake3) | verified with a generated challenge |
 | ✅ | `yidun` | NetEase slider (v3 protocol 2.28.5) | verified with the demo captchaId |
@@ -361,7 +366,7 @@ payload was byte-identical — the IP, not the engine, is what changed.
 |---|---|---|
 | OS | Linux + Chromium deps / WSL2 | Debian 13 (trixie), Ubuntu WSL2 |
 | Python | 3.11 | 3.11.15 (WSL), 3.13.5 (VPS) |
-| Node.js | 18 (imperva sidecar) | v22 (WSL), v20 (VPS) |
+| Node.js | 18 (imperva sidecar, `friendly_v2` PoW engine, `awswaf_js` WAF core) | v22 (WSL), v20 (VPS) |
 | RAM | 2 GB | 8 GB |
 | CPU | 4 cores | 24 cores (VPS) |
 | Disk | 3 GB (+1.5 GB arkose models, optional) | — |
@@ -448,12 +453,29 @@ payload was byte-identical — the IP, not the engine, is what changed.
 - `tspd` now requires `url` up-front instead of failing deep in the node sidecar.
 - ONNX models moved to Hugging Face (`VeyraAgent/cf-solver-models`) to keep the
   clone light; `scripts/fetch_models.sh` restores them.
+- **2026-10-31 (jb drop):** five new types — `friendly_v2` (Friendly Captcha v2
+  activate→quote→BLAKE2s→redeem, node work-stealing PoW), `awswaf_js` (the AWS WAF
+  challenge client ported to Node: no browser, ~0.8 s per token), `ocr` (local CTC,
+  ships `common.onnx`), `aliyun_traceless` (Camoufox checkbox for TRACELESS mode),
+  `tcaptcha` (Tencent slider: 5-detector consensus + browser flow runner). `node`
+  moved from "imperva only" to a first-class runtime; leftover reference material
+  from the drop lives in `tools/jb/`.
 - `run.sh` auto-starts under Xvfb, reads `$PORT`, and refuses a busy port;
   `install.sh` installs chromium + Xvfb + node + the sidecar + deps.
 - **WSL gotcha:** WSLg sets `$DISPLAY`, but a chromium launched as a subprocess
   fails X auth on it (`Authorization required, but no authorization protocol
   specified` → `TargetClosedError`, HTTP 500). `run.sh` therefore prefers
   `xvfb-run` whenever it exists instead of trusting `$DISPLAY`.
+
+### Optional runtimes
+
+- `friendly_v2` and `awswaf_js` shell out to `node` (>=18). `awswaf_js` ships its own
+  `node_modules` (`http(s)-proxy-agent`), so no `npm install` is needed at runtime.
+- `aliyun_traceless` needs Camoufox in the *server* interpreter
+  (`pip install "camoufox[geoip]"`). Without it the type returns a clean error dict
+  instead of failing the request.
+- `tcaptcha mode=solve` needs Playwright + Chromium (the toolkit provisions chromium
+  on demand); `mode=detect` is pure OpenCV/numpy.
 
 ## ✅ Verification
 
@@ -479,6 +501,11 @@ token or cookie came back — not merely "no HTTP 500":
 | `mtcaptcha` | `vt` token from MTCaptcha's public demo sitekey |
 | `cerberus` | blake3 PoW solved from a generated challenge |
 | `steam`, `yidun`, `dingxiang`, `douyin`, `cerberus`, `captchafox`, `recaptcha_audio` | shipped self-tests pass (45/5/30/27/35/5/31 checks) |
+| `friendly_v2` | live `AQQA…` redeem token from `global.frcapi.com` (demo sitekey), cost tier 5M–20M hashes |
+| `awswaf_js` | live `aws-waf-token` from a WAF-protected login page in ~0.8 s (no browser) |
+| `ocr` | `8k9p2` from a generated image (ddddocr + the vendored ONNX engine agree) |
+| `tcaptcha` (detect) | consensus gap on a generated slider pair (`gap=201`, 4/4 detectors clustered) |
+| `aliyun_traceless` | full Camoufox session verified end-to-end against a non-captcha page (form fill → submit → state poll → screenshot); needs a real TRACELESS target for a pass |
 
 The remaining `⚙️ needs input` types are complete but require a real sitekey,
 URL, or image from the target site — those values cannot be invented.

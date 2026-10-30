@@ -36,3 +36,10 @@ numpy
 substrate-interface
 bip39
 mnemonic
+
+# ── 2026-10-31 jb drop ──────────────────────────────────────────────
+# friendly_v2 + awswaf_js need `node` (>=18) on PATH at runtime; awswaf_js
+# vendors its own node_modules, friendly_v2 needs none.
+# aliyun_traceless (Camoufox Firefox) is OPTIONAL — install it into the server
+# interpreter when you need the type, otherwise it returns a clean error:
+#   pip install "camoufox[geoip]"

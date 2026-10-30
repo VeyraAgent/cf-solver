@@ -45,3 +45,8 @@ solvers/recaptcha_audio/models/
 
 # stray eval scratch
 _tmp_eval.js
+
+# awswaf_js: the WAF core has no build step — vendor its 7 proxy-agent packages so a
+# fresh clone / git-based deploy works without `npm install`.
+!solvers/awswaf_js/node_modules/
+!solvers/awswaf_js/node_modules/**
