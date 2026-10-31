@@ -19,11 +19,13 @@ from PIL import Image, ImageDraw
 import os
 
 BASE = os.getenv("SOLVER_URL", "http://127.0.0.1:8877")
+TOKEN = os.getenv("SOLVER_TOKEN", "").strip()   # repo tree gates /solve with a Bearer token
 
 
 def post(path, payload, timeout=180):
     req = urllib.request.Request(BASE + path, data=json.dumps(payload).encode(),
-                                 headers={"Content-Type": "application/json"})
+                                 headers={"Content-Type": "application/json",
+                                        **({"Authorization": f"Bearer {TOKEN}"} if TOKEN else {})})
     t0 = time.time()
     d = json.loads(urllib.request.urlopen(req, timeout=timeout).read())
     return d, round(time.time() - t0, 1)

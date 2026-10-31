@@ -28,6 +28,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from tools.type_matrix import PAYLOADS  # noqa: E402
 
 BASE = os.getenv("SOLVER_URL", "http://127.0.0.1:8877")
+TOKEN = os.getenv("SOLVER_TOKEN", "").strip()   # repo tree gates /solve with a Bearer token
 PNG_1PX = ("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmM"
            "IQAAAABJRU5ErkJggg==")
 
@@ -67,7 +68,8 @@ def main() -> int:
         t0 = time.time()
         try:
             req = urllib.request.Request(BASE + "/solve", data=json.dumps(payload).encode(),
-                                         headers={"Content-Type": "application/json"})
+                                         headers={"Content-Type": "application/json",
+                                        **({"Authorization": f"Bearer {TOKEN}"} if TOKEN else {})})
             with urllib.request.urlopen(req, timeout=75) as r:
                 status = r.status
                 data = json.loads(r.read() or b"{}")

@@ -120,7 +120,7 @@ async def solve_image_to_text(image_b64: str = None, url: str = None,
             nonlocal image_bytes
             image_bytes = await asyncio.to_thread(_fetch_image_bytes, url)
         return await jev_solve(_image64(), prompt=prompt,
-                               task=task or "text",
+                               task=task or None,  # let Jev autodetect from the prompt
                                options=options, ensemble_votes=ensemble_votes,
                                timeout_s=timeout_s)
 
