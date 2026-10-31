@@ -79,6 +79,23 @@ async def run_pre_actions(page, actions: list):
         await asyncio.sleep(0.5)
 
 
+def display_usable() -> bool:
+    """True when $DISPLAY points at a real X socket.
+
+    WSLg (and stale CI envs) export DISPLAY while nothing is listening — a headed
+    Chromium then dies with `TargetClosedError: BrowserType.launch` and every
+    interactive solver returns HTTP 500. Local `:N` displays are verified against
+    /tmp/.X11-unix; remote `host:N` forms are trusted (no cheap probe).
+    """
+    disp = (os.getenv("DISPLAY") or "").strip()
+    if not disp:
+        return False
+    m = re.match(r"^(?:unix)?:(\d+)(?:\.\d+)?$", disp)
+    if m:
+        return os.path.exists(f"/tmp/.X11-unix/X{m.group(1)}")
+    return ":" in disp          # remote X (host:N) — assume reachable
+
+
 def browser_kwargs(prefix: str, proxy: str | None = None) -> dict:
     """Browser-trust levers shared by all browser solvers.
 
@@ -94,8 +111,19 @@ def browser_kwargs(prefix: str, proxy: str | None = None) -> dict:
     {server, username, password} so Chromium auth works reliably (cloakbrowser).
     """
     default_headless = "1" if prefix == "TURNSTILE" else "0"
-    kw = {"humanize": True,
-          "headless": os.getenv("BROWSER_HEADLESS", default_headless) != "0"}
+    headless = os.getenv("BROWSER_HEADLESS", default_headless) != "0"
+    if not headless and not display_usable():
+        # A headed launch needs a live X server. Rather than 500 every interactive
+        # solver (reCAPTCHA/hCaptcha/BotGuard default to headed), degrade to
+        # headless and say so. BROWSER_REQUIRE_DISPLAY=1 keeps the old hard failure.
+        if os.getenv("BROWSER_REQUIRE_DISPLAY") == "1":
+            raise RuntimeError(
+                f"headed browser requested but DISPLAY={os.getenv('DISPLAY')!r} has no "
+                "live X socket (start Xvfb / use xvfb-run, or set BROWSER_HEADLESS=1)")
+        log.warning("DISPLAY=%r has no live X socket — forcing headless for %s",
+                    os.getenv("DISPLAY"), prefix)
+        headless = True
+    kw = {"humanize": True, "headless": headless}
     if proxy:
         kw["proxy"] = _normalize_proxy(proxy)
     if os.getenv(f"{prefix}_GEOIP") == "1":

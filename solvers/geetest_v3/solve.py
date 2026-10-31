@@ -27,18 +27,28 @@ log = logging.getLogger(__name__)
 _BILI_REGISTER = "https://passport.bilibili.com/x/passport-login/captcha?source=main_web"
 
 
+_BINDING_HINT = (
+    "geetest_v3 is unavailable in this deployment: the bili_ticket_gt_python "
+    "Rust binding is not built here (needs a glibc>=2.38 host). Use the "
+    "GeeTest v4 solver (task=GeeTestV4TaskProxyless / captchaId) instead."
+)
+
+
 def available() -> bool:
+    """True when the Rust binding imports on this host (it only builds on glibc>=2.38)."""
     try:
-            try:
         import bili_ticket_gt_python  # noqa: F401
-        from bili_ticket_gt_python import ClickPy
-    except ImportError as exc:  # binding only builds on glibc>=2.38 hosts
-        raise RuntimeError(
-            "geetest_v3 is unavailable in this deployment: the bili_ticket_gt_python "
-            "Rust binding is not built here (needs a glibc>=2.38 host). Use the "
-            "GeeTest v4 solver (task=GeeTestV4TaskProxyless / captchaId) instead."
-        ) from exc
-return False
+    except ImportError:
+        return False
+    return True
+
+
+def _require_binding() -> None:
+    """Raise the readable hint instead of an ImportError traceback."""
+    try:
+        import bili_ticket_gt_python  # noqa: F401
+    except ImportError as exc:
+        raise RuntimeError(_BINDING_HINT) from exc
 
 
 def fetch_gt_challenge(register_url: str = _BILI_REGISTER, timeout_s: int = 20) -> tuple[str, str]:
@@ -114,6 +124,9 @@ async def solve_geetest_v3(gt: str, challenge: str, timeout_s: int = 90,
             "method": "gt3-click", "elapsed": round(time.monotonic() - t0, 1),
             "error": error,
         }
+    # Fail fast with the readable hint: retrying cannot build a Rust extension.
+    if not available():
+        return _fail(_BINDING_HINT)
 
     if not gt or not challenge:
         gt2, ch2 = await asyncio.to_thread(fetch_gt_challenge, register_url or _BILI_REGISTER)

@@ -100,11 +100,14 @@ d, el = post("/solve", {"type": "tcaptcha", "mode": "detect",
 check("tcaptcha detect consensus", d.get("solved") and abs(int(d.get("gap") or 0) - TX) <= 3,
       f"{el}s gap={d.get('gap')} (expected {TX}) dx={d.get('dx')}")
 
-# 6. aliyun_traceless degrades cleanly (no camoufox in this interpreter)
-d, el = post("/solve", {"type": "aliyun_traceless", "url": "https://example.com/login", "timeout_s": 90})
-check("aliyun_traceless clean error", d.get("solved") is False and d.get("error"),
-      f"{el}s error={str(d.get('error'))[:60]}")
-print("   (with camoufox present it runs the browser path — see README)")
+# 6. aliyun_traceless must answer structurally either way: with Camoufox present it
+#    drives the browser (and fails on a page without the widget), without it returns a
+#    clean "not installed" error. A 5xx or an unhandled crash is the failure mode.
+d, el = post("/solve", {"type": "aliyun_traceless",
+                        "url": "https://example.com/login", "timeout_s": 120})
+structured = ("solved" in d) and (d.get("solved") is True or bool(d.get("error")))
+check("aliyun_traceless structured result", structured,
+      f"{el}s solved={d.get('solved')} error={str(d.get('error'))[:70]}")
 
 # 7. regression: tencent (pre-existing, self-contained)
 d, el = post("/solve", {"type": "tencent"}, timeout=120)

@@ -12,213 +12,44 @@ That is what this solver is: Camoufox (Firefox, humanised) → open the host
 flow → fill the form → submit → wait for the popup → humanised click →
 verify `验证通过`.
 
+**The session runs in a subprocess** (`_run.py`). Two reasons, both proven:
+Camoufox's driver is the *sync* Playwright API (it loses its connection object
+when the async drivers of the other solvers are live in the same process), and a
+sync browser must never block uvicorn's loop. Same shape as `solvers/aliyun`.
+
 Measured on `sso.openxlab.org.cn` (the reference run): 4/5 (80%), 34–39 s each.
 Failures stop at the checkbox (challenge rejected at init) and correlate with
 long runs — throttle, not a bad click. Give it ≥30 s between runs and rotate
 IPs, or the rate will fall.
 
 Env notes:
-  * Camoufox must be importable in the running interpreter (`pip install camoufox`).
-  * If the binary lives outside the cache, set `CAMOUFOX_EXECUTABLE_PATH`.
+  * Camoufox must be importable in the **serving** interpreter
+    (`pip install "camoufox[geoip]"`); it is required, not optional.
+  * If the binary lives outside the cache, export `CAMOUFOX_EXECUTABLE_PATH`.
   * `humanize=True` is mandatory — it is what makes the pointer telemetry count.
 """
 from __future__ import annotations
 
 import asyncio
+import importlib.util
 import json
 import logging
+import os
+import sys
 import time
-from pathlib import Path
 
 log = logging.getLogger(__name__)
 
 PASS_TEXT = "验证通过"
 FAIL_TEXT = "确认您不是机器人"
 
-# Installed before any page script: capture the SDK config, its callbacks and the
-# InitCaptchaV3 exchange so a failed run stays diagnosable after the fact.
-HOOK = r"""
-(() => {
-  if (window.__hooked) return 'already';
-  window.__hooked = true;
-  window.__log = [];
-  window.__state = {};
-  const L = (tag, v) => {
-    try { window.__log.push({tag, v: (typeof v === 'string' ? v : JSON.stringify(v)).slice(0, 1000)}); } catch (e) {}
-  };
-  window.__glog = () => window.__log;
 
-  const origInit = window.initAliyunCaptcha;
-  if (typeof origInit === 'function') {
-    window.initAliyunCaptcha = function (cfg) {
-      try {
-        L('cfg', {SceneId: cfg.SceneId, mode: cfg.mode,
-                  CaptchaType: cfg.CaptchaType, verifyType: cfg.verifyType});
-      } catch (e) {}
-      ['success', 'failCb', 'fallbackCb', 'onBizResultCallback', 'onClose'].forEach(name => {
-        const fn = cfg[name];
-        if (typeof fn === 'function') {
-          cfg[name] = function (v) {
-            L('cb:' + name, v);
-            window.__state[name] = v;
-            return fn.apply(this, arguments);
-          };
-        }
-      });
-      return origInit.apply(this, arguments);
-    };
-  }
-
-  const oOpen = XMLHttpRequest.prototype.open;
-  const oSend = XMLHttpRequest.prototype.send;
-  XMLHttpRequest.prototype.open = function (m, u) { this.__m = m; this.__u = u; return oOpen.apply(this, arguments); };
-  XMLHttpRequest.prototype.send = function () {
-    this.addEventListener('load', () => {
-      try { L('XHR<', String(this.__u).slice(0, 90) + ' -> ' + String(this.responseText).slice(0, 500)); } catch (e) {}
-    });
-    return oSend.apply(this, arguments);
-  };
-  return 'hooked';
-})()
-"""
-
-STATE = r"""
-(() => {
-  const popup = document.getElementById('aliyunCaptcha-window-popup');
-  const body = document.getElementById('aliyunCaptcha-checkbox-body');
-  const r = body ? body.getBoundingClientRect() : null;
-  return {
-    log: window.__glog ? window.__glog() : [],
-    state: window.__state || {},
-    popupCls: popup ? popup.className : null,
-    chk: (document.getElementById('aliyunCaptcha-checkbox-text') || {}).textContent,
-    err: (document.getElementById('aliyunCaptcha-errorCode') || {}).textContent,
-    btn: (document.querySelector('button[class*=login]') || {}).textContent,
-    rect: r ? {x: r.x, y: r.y, w: r.width, h: r.height} : null,
-    canvases: document.querySelectorAll('canvas').length,
-  };
-})()
-"""
-
-
-def _human_click(page, x: float, y: float) -> None:
-    """Approach along a path, then press — JS `.click()` emits no scored telemetry."""
-    page.mouse.move(x - 100, y - 50)
-    page.wait_for_timeout(150)
-    page.mouse.move(x, y, steps=18)
-    page.wait_for_timeout(200)
-    page.mouse.down()
-    page.wait_for_timeout(80)
-    page.mouse.up()
-
-
-def _run_once(*, url: str, username: str, password: str, user_selector: str,
-              pass_selector: str, submit_selector: str, headless: bool,
-              locale: str, viewport: tuple[int, int], warmup_ms: int,
-              proxy: str | None, out_dir: Path) -> dict:
-    """Blocking Camoufox session — called via asyncio.to_thread (sync Playwright API)."""
-    from camoufox.sync_api import Camoufox  # lazy + host-dependent
-
-    t0 = time.time()
-    out = {"solved": False, "detail": {}, "t0": t0}
-    kwargs: dict = {"headless": headless, "humanize": True, "geoip": False,
-                    "locale": [locale, "en-US"], "window": viewport}
-    if proxy:
-        kwargs["proxy"] = {"server": proxy} if "@" not in proxy else _proxy_dict(proxy)
-
-    with Camoufox(**kwargs) as browser:
-        page = browser.new_page()
-        page.add_init_script(HOOK)
-        page.goto(url, wait_until="domcontentloaded", timeout=60000)
-        page.wait_for_timeout(2500)
-
-        try:
-            account = page.locator(user_selector).first
-            account.click(timeout=10000)
-            account.fill(username)
-        except Exception as e:
-            out["detail"]["fill_user_error"] = str(e)[:160]
-        if password:
-            try:
-                pw = page.locator(pass_selector).first
-                pw.click(timeout=10000)
-                pw.fill(password)
-            except Exception as e:
-                out["detail"]["fill_pass_error"] = str(e)[:160]
-
-        # consent checkboxes on the host form (skip the first, usually "remember me")
-        boxes = page.locator("input[type=checkbox]")
-        for i in range(boxes.count()):
-            if i > 0 and not boxes.nth(i).is_checked():
-                try:
-                    boxes.nth(i).check(timeout=4000)
-                except Exception:
-                    try:
-                        boxes.nth(i).click(force=True)
-                    except Exception:
-                        pass
-
-        if warmup_ms:
-            page.wait_for_timeout(warmup_ms)
-
-        try:
-            page.locator(submit_selector).first.click(timeout=10000)
-        except Exception as e:
-            out["detail"]["submit_error"] = str(e)[:160]
-
-        clicked = False
-        for _ in range(50):
-            page.wait_for_timeout(400)
-            st = page.evaluate(STATE)
-            chk = st.get("chk") or ""
-            if PASS_TEXT in chk:
-                out["solved"] = True
-                out["detail"]["passed_text"] = chk
-            if (st.get("popupCls") == "window-show" and st.get("rect")
-                    and st["rect"]["w"] > 0 and not clicked):
-                clicked = True
-                r = st["rect"]
-                _human_click(page, r["x"] + 28, r["y"] + r["h"] / 2)
-                out["detail"]["clicked_at"] = round(time.time() - out["t0"], 2)
-            if out["solved"] and st.get("popupCls") == "window-hidden":
-                break
-
-        final = page.evaluate(STATE)
-        out["detail"].update({
-            "final_chk": final.get("chk"),
-            "final_popup": final.get("popupCls"),
-            "btn": final.get("btn"),
-            "err": final.get("err"),
-            "canvases": final.get("canvases"),
-            "elapsed": round(time.time() - out["t0"], 2),
-            "log": (final.get("log") or [])[-40:],
-        })
-        token = (final.get("state") or {}).get("success")
-        if token:
-            out["detail"]["token"] = str(token)[:300]
-        for entry in final.get("log") or []:
-            if "InitCaptchaV3" in str(entry.get("v")) or "CertifyId" in str(entry.get("v")):
-                out["detail"]["init"] = str(entry["v"])[:250]
-        out["detail"]["final_chk_raw"] = final.get("chk")
-        try:
-            page.screenshot(path=str(out_dir / "aliyun_traceless.png"))
-        except Exception:
-            pass
-    return out
-
-
-def _proxy_dict(proxy: str) -> dict:
-    """user:pass@host:port → playwright proxy dict."""
-    from urllib.parse import urlsplit
-
-    raw = proxy if "://" in proxy else "http://" + proxy
-    u = urlsplit(raw)
-    d = {"server": f"{u.scheme}://{u.hostname}:{u.port}"}
-    if u.username:
-        d["username"] = u.username
-    if u.password:
-        d["password"] = u.password
-    return d
+def available() -> bool:
+    """True when this interpreter can launch Camoufox."""
+    try:
+        return importlib.util.find_spec("camoufox.sync_api") is not None
+    except (ImportError, ValueError):
+        return False
 
 
 async def solve_aliyun_traceless(url: str, username: str | None = None,
@@ -233,36 +64,65 @@ async def solve_aliyun_traceless(url: str, username: str | None = None,
                                  out_dir: str = "/tmp/tcaptcha") -> dict:
     """Pass a TRACELESS Aliyun checkbox. `solved` ⇔ `验证通过` was observed."""
     t0 = time.monotonic()
+
+    def _fail(error: str) -> dict:
+        return {"solved": False, "method": "aliyun-traceless",
+                "elapsed": round(time.monotonic() - t0, 1), "error": error}
+
     if not url:
-        return {"solved": False, "method": "aliyun-traceless", "elapsed": 0.0,
-                "error": "url is required"}
-    od = Path(out_dir)
-    od.mkdir(parents=True, exist_ok=True)
+        return _fail("url is required")
+    if not available():
+        return _fail("camoufox is not installed in the serving interpreter "
+                     "(pip install 'camoufox[geoip]')")
+
+    payload = {
+        "url": url, "username": username or "captcha_probe_dummy",
+        "password": password or "Probe!2345xyz",
+        "user_selector": user_selector, "pass_selector": pass_selector,
+        "submit_selector": submit_selector, "headless": bool(headless),
+        "locale": locale, "viewport": [int(viewport[0]), int(viewport[1])],
+        "warmup_ms": int(warmup_ms or 0), "proxy": proxy, "out_dir": out_dir,
+    }
+    budget = max(60, int(timeout_s or 180))
+    # display sanity: a headed Camoufox needs a live X socket, same rule as the
+    # Chromium solvers (WSLg exports a stale DISPLAY).
+    from solvers.common.browser import display_usable
+
+    if not payload["headless"] and not display_usable():
+        log.warning("DISPLAY has no live X socket — running aliyun_traceless headless")
+        payload["headless"] = True
+
+    env = dict(os.environ)
+    env.setdefault("PYTHONPATH", os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__)))))
+    proc = await asyncio.create_subprocess_exec(
+        sys.executable, "-m", "solvers.aliyun_traceless._run",
+        stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE, env=env,
+        cwd=env["PYTHONPATH"])
     try:
-        import importlib.util
-
-        if importlib.util.find_spec("camoufox.sync_api") is None:
-            raise RuntimeError("camoufox not installed in this interpreter "
-                               "(pip install 'camoufox[geoip]')")
-        r = await asyncio.wait_for(
-            asyncio.to_thread(
-                _run_once, url=url, username=username or "captcha_probe_dummy",
-                password=password or "Probe!2345xyz", user_selector=user_selector,
-                pass_selector=pass_selector, submit_selector=submit_selector,
-                headless=headless, locale=locale, viewport=viewport,
-                warmup_ms=int(warmup_ms or 0), proxy=proxy, out_dir=od),
-            timeout=max(60, int(timeout_s or 180)))
+        out, err = await asyncio.wait_for(proc.communicate(json.dumps(payload).encode()),
+                                          timeout=budget + 30)
     except asyncio.TimeoutError:
-        return {"solved": False, "method": "aliyun-traceless",
-                "elapsed": round(time.monotonic() - t0, 1),
-                "error": f"timed out after {timeout_s}s"}
-    except Exception as e:
-        return {"solved": False, "method": "aliyun-traceless",
-                "elapsed": round(time.monotonic() - t0, 1),
-                "error": f"{type(e).__name__}: {e}"[:240]}
+        proc.kill()
+        return _fail(f"timed out after {budget + 30}s")
 
-    detail = r.get("detail") or {}
-    solved = bool(r.get("solved"))
+    result: dict | None = None
+    for line in (out or b"").decode(errors="replace").splitlines():
+        if line.startswith("__ALIYUN_TRACELESS__"):
+            try:
+                result = json.loads(line[len("__ALIYUN_TRACELESS__"):])
+            except Exception:  # noqa: BLE001
+                result = None
+    if result is None:
+        tail = (err or b"").decode(errors="replace").strip().splitlines()[-4:]
+        return _fail(f"runner produced no result (rc={proc.returncode}): "
+                     f"{' | '.join(tail)[:240]}")
+
+    detail = result.get("detail") or {}
+    if detail.get("error"):
+        return _fail(f"runner error: {detail['error']}")
+    solved = bool(result.get("solved"))
     return {"solved": solved, "passed": solved, "verify_success": solved,
             "method": "aliyun-traceless",
             "token": detail.get("token") or "",
@@ -276,10 +136,7 @@ async def solve(*args, **kwargs) -> dict:  # pragma: no cover - dispatch alias
     return await solve_aliyun_traceless(*args, **kwargs)
 
 
-if __name__ == "__main__":  # python -m solvers.aliyun_traceless.solve <url>
-    import sys
-
+if __name__ == "__main__":  # python -m solvers.aliyun_traceless.solve <url> [user] [pass]
     if len(sys.argv) < 2:
         raise SystemExit("usage: python -m solvers.aliyun_traceless.solve <url> [user] [pass]")
-    print(asyncio.run(solve_aliyun_traceless(
-        sys.argv[1], *sys.argv[2:4], headless=True)))
+    print(asyncio.run(solve_aliyun_traceless(sys.argv[1], *sys.argv[2:4], headless=True)))

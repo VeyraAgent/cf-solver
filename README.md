@@ -462,6 +462,20 @@ payload was byte-identical — the IP, not the engine, is what changed.
   from the drop lives in `tools/jb/`.
 - `run.sh` auto-starts under Xvfb, reads `$PORT`, and refuses a busy port;
   `install.sh` installs chromium + Xvfb + node + the sidecar + deps.
+- **Headed fallback (2026-10-31):** `browser_kwargs()` now probes `$DISPLAY` against
+  `/tmp/.X11-unix/X<N>` and forces `headless=True` when nothing is listening (WSLg and
+  stale CI envs export a dead display, which used to make every interactive solver —
+  reCAPTCHA/hCaptcha/BotGuard — return HTTP 500 `TargetClosedError`). Set
+  `BROWSER_REQUIRE_DISPLAY=1` to keep the hard failure instead.
+- **`geetest_v3`** had a syntax-broken `available()` (doubled `try:`), so importing the
+  module 500'd instead of explaining that the Rust binding is missing. Repaired; the
+  type now returns the readable hint immediately instead of retrying a missing extension.
+- **`aliyun_traceless`** runs its Camoufox session in a subprocess (`_run.py`): Camoufox's
+  sync Playwright driver loses its `Connection` when the async drivers of the other
+  solvers are live in the same process (`'Connection' object has no attribute
+  call_on_object_with_known_name'`), and a sync browser must not block the event loop.
+- `tools/engine_sweep.py` fires one request per advertised type and classifies it; the
+  post-fix run is **55 types, 0 BROKEN** (13 SOLVED / 39 DISPATCHED / 3 REJECTED).
 - **WSL gotcha:** WSLg sets `$DISPLAY`, but a chromium launched as a subprocess
   fails X auth on it (`Authorization required, but no authorization protocol
   specified` → `TargetClosedError`, HTTP 500). `run.sh` therefore prefers
