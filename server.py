@@ -274,6 +274,21 @@ class SolveRequest(BaseModel):
         "IP-bound cookies (cloudflare/datadome/akamai/imperva/awswaf/perimeterx/x5sec) can be "
         "replayed from the same IP. No env fallback — omit to solve without proxy.")
 
+    # image_to_text → Jev (jev-captcha.service :8917, model jev-preview)
+    prompt: Optional[str] = Field(
+        None, description="image_to_text: Jev target/question, e.g. 'select all "
+        "airplanes'. Also used by the vision solvers as the instruction.")
+    jev_task: Optional[str] = Field(
+        None, description="image_to_text: Jev task — grid|single|locate|rotate|"
+        "slider|text|rank|puzzle|classify (auto when omitted).")
+    jev_options: Optional[list] = Field(
+        None, description="image_to_text: choice options for a Jev classify task.")
+    ensemble_votes: Optional[int] = Field(
+        5, description="image_to_text: Jev classifier votes (1-9).")
+    jev_mode: Optional[str] = Field(
+        None, description="image_to_text: Jev routing — utama | fallback | off "
+        "(default $I2T_JEV_MODE, i.e. fallback).")
+
     # jb/solver drop fields (2026-10-31)
     user_selector: Optional[str] = Field(
         None, description="aliyun_traceless: CSS for the account input "
@@ -1018,7 +1033,11 @@ async def _dispatch(req: SolveRequest) -> dict:
 
     if req.type == "image_to_text":
         from solvers.image_to_text.solve import solve_image_to_text
-        r = await solve_image_to_text(req.image_b64, req.url, req.timeout_s or 60)
+        r = await solve_image_to_text(
+            req.image_b64, req.url, req.timeout_s or 60,
+            jev_mode=req.jev_mode, prompt=req.prompt or "",
+            task=req.jev_task, options=req.jev_options,
+            ensemble_votes=req.ensemble_votes or 5)
         return {"type": "image_to_text", **r}
 
     if req.type == "imperva":

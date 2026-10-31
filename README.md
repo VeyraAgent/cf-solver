@@ -99,7 +99,7 @@ Legend:
 | ✅ | `mcaptcha` | PoW solution | verified with a generated config |
 | ✅ | `goaway` | PoW solution | verified with a generated challenge |
 | ✅ | `rotate` | rotation angle | ships its own ONNX model |
-| ✅ | `image_to_text` | OCR text | ddddocr, raw base64 or data-URI |
+| ✅ | `image_to_text` | OCR text | ddddocr, raw base64 or data-URI. **Jev** (TypeSafe System One, `jev-captcha.service` :8917, model `jev-preview`) is available as the vision backend: `jev_mode=utama|fallback|off` (default `fallback`), with `prompt` / `jev_task` / `jev_options` / `ensemble_votes`. Plain text OCR stays ddddocr — Jev's own `text_captcha` output warns it is not OCR-tuned |
 | ✅ | `tspd` | F5/DDoS cookie | needs `url` |
 | ✅ | `altcha` | PoW payload | official altcha-lib; verified with a generated challenge |
 | ✅ | `tencent` | `ticket` + `randstr` | verified with the public test appid (pure-HTTP) |
@@ -482,6 +482,12 @@ payload was byte-identical — the IP, not the engine, is what changed.
   `xvfb-run` whenever it exists instead of trusting `$DISPLAY`.
 
 ### Optional runtimes
+
+- **Jev** (`image_to_text` vision path): the service lives in `~/work/jev_captcha`
+  (`jev-captcha.service`, `:8917`). Point `JEV_URL` at a tunnel for a remote deployment —
+  on Modal `127.0.0.1:8917` does not exist, so either tunnel it or leave `jev_mode=off`.
+  `fallback` never calls Jev for a plain text image (it can answer confidently wrong:
+  `K7M4Q` → `aaa4a`); it only rescues when a `prompt`/vision `jev_task` is given.
 
 - `friendly_v2` and `awswaf_js` shell out to `node` (>=18). `awswaf_js` ships its own
   `node_modules` (`http(s)-proxy-agent`), so no `npm install` is needed at runtime.
