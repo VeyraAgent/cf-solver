@@ -34,7 +34,7 @@ api: `https://tumbalkuncuy--veyracaptcha-api.modal.run`
 | zhihu | api | **REJECTED** | all backends failed: primary: zhihu: no text recognized |
 | binance | api | **REJECTED** | all backends failed: primary: full mode requires biz_id + security_check_response_validate_id when n |
 | basilisk | api | **REJECTED** | all backends failed: primary: basilisk: pass (site_key + site_domain) for live flow, or (slide_bg_b6 |
-| captchafox | api | **REJECTED** | all backends failed: primary: captchafox: provide image_b64 or image_url (background) |
+| captchafox | api | **PENDING_REDEPLOY** | engine solves in protocol mode locally (2026-11-05); API layer still runs the pre-protocol build |
 | tspd | api | **REJECTED** | all backends failed: primary: solver returned unsolved |
 | yidun | api | **REJECTED** | all backends failed: primary: could not extract captchaId from page source |
 | dingxiang | api | **REJECTED** | all backends failed: primary: no ac provider configured: the v5 /api/v1 endpoint requires the SDK-ge |

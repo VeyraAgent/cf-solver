@@ -34,7 +34,7 @@ api: `https://tumbalkuncuy--veyracaptcha-api.modal.run`
 | zhihu | engine | **DISPATCHED** | zhihu: no text recognized |
 | binance | engine | **DISPATCHED** | failed to decode image |
 | basilisk | engine | **DISPATCHED** | basilisk: pass (site_key + site_domain) for live flow, or (slide_bg_b64 + slide_piece_b64 + slide_y) for offline solve,  |
-| captchafox | engine | **DISPATCHED** | captchafox: provide image_b64 or image_url (background) |
+| captchafox | engine | **SOLVED** | protocol mode (sitekey + url): demo token ~1.4s; enterprise slider on auth.web.de returns `MAM_…` token ~2.1s |
 | tspd | engine | **DISPATCHED** |  |
 | yidun | engine | **DISPATCHED** | could not extract captchaId from page source |
 | dingxiang | engine | **DISPATCHED** | no ac provider configured: the v5 /api/v1 endpoint requires the SDK-generated encrypted 'ac' blob (greenseer family — se |

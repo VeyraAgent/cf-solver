@@ -78,7 +78,9 @@ PAYLOADS: dict[str, dict] = {
     "zhihu": dict(IMAGE),
     "binance": {"biz_id": "", "url": "https://example.com"},
     "basilisk": {"site_key": "", "site_domain": "example.com"},
-    "captchafox": {"body": "", "image_url": "", "website_key": ""},
+    # protocol mode: sitekey + page URL -> live token (was an empty body before)
+    "captchafox": {"sitekey": "sk_bo3q016TDv4Jey6fibTVChVS9z-cYdCO",
+                   "url": "https://captchafox.com/"},
     "tspd": {"url": "https://example.com"},
     "yidun": {"captchaId": "", "url": "https://dun.163.com/demo"},
     "dingxiang": {"app_id": "", "url": "https://example.com"},
@@ -237,9 +239,11 @@ def main() -> int:
     ap.add_argument("--only-engine", action="store_true")
     ap.add_argument("--only-api", action="store_true")
     ap.add_argument("--timeout", type=int, default=120)
+    ap.add_argument("--types", default="", help="comma-separated subset, e.g. captchafox,turnstile")
     args = ap.parse_args()
 
-    types = list(PAYLOADS.keys())
+    only = {t.strip() for t in args.types.split(",") if t.strip()}
+    types = [t for t in PAYLOADS if not only or t in only]
     rows: list[tuple[str, str, str, str, str]] = []
 
     if not args.only_api:
