@@ -785,11 +785,18 @@ async def _dispatch(req: SolveRequest) -> dict:
 
     if req.type == "captchafox":
         from solvers.captchafox.solve import solve_captchafox
-        r = await solve_captchafox(image_b64=req.image_b64, image_url=req.url,
-                                    piece_b64=req.challenge_json.get("piece_b64") if req.challenge_json else None,
-                                    encrypted_data=req.challenge,
-                                    host=req.page_url, proxy=req.proxy,
-                                    timeout_s=req.timeout_s or 60)
+        cj = req.challenge_json or {}
+        # sitekey present -> full protocol flow (token). no sitekey -> legacy image mode.
+        mode = cj.get("mode") or ("protocol" if req.sitekey else "image")
+        r = await solve_captchafox(
+            image_b64=req.image_b64, image_url=req.url,
+            piece_b64=cj.get("piece_b64"), piece_url=cj.get("piece_url"),
+            encrypted_data=req.challenge,
+            host=req.page_url or "unknown", proxy=req.proxy,
+            timeout_s=req.timeout_s or 60,
+            sitekey=req.sitekey, page_url=req.page_url or req.url,
+            mode=mode, captcha_type=cj.get("captcha_type", "auto"),
+        )
         return {"type": "captchafox", **r}
 
     if req.type == "binance":

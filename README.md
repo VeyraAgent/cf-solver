@@ -81,7 +81,7 @@ Legend:
 | ⚙️ | `cybersiara` | JWT token | needs the current `MasterUrlId` |
 | ⚙️ | `x5sec` | `x5sec` cookie | needs a live punish URL |
 | ⚙️ | `friendly` | challenge token | needs a live target |
-| ⚙️ | `captchafox` | slide result | needs the puzzle piece |
+| ✅ | `captchafox` | token | protocol: `sitekey` + `url` (normal & slider, incl. enterprise `mam-api`); image mode still available via `challenge_json.mode=image` |
 | ✅ | `binance` | slide result | verified with the slide endpoint (`biz_id`) |
 | ⚙️ | `basilisk` | slide + icon-click | needs `site_key` + `site_domain` |
 | ⚙️ | `recaptcha_audio` | transcribed text | needs the audio clip URL (no browser) |

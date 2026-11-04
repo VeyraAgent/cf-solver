@@ -1,5 +1,16 @@
 # CaptchaFox Solver
 
+Two modes:
+
+| mode | input | output | notes |
+| --- | --- | --- | --- |
+| `protocol` (default when `sitekey` is sent) | `sitekey` + `url` (+ optional proxy) | live verified `token` | runs config → PoW → challenge → slider → verify; auto-detects enterprise hosts (`mam-api.captchafox.com`, e.g. auth.web.de) |
+| `image` (legacy) | background + puzzle piece | offset + encrypted payload | caller still owns the HTTP flow |
+
+Vendored core lives in `_protocol_core.py` (third-party, no license attached — see header).
+It was statically audited: no subprocess/eval/exec, no file writes, only
+`api/cdn/mam-api.captchafox.com` outbound. `protocol.py` is the thin adapter.
+
 Solves CaptchaFox slide captchas with encryption protocol support.
 
 ## What is CaptchaFox?

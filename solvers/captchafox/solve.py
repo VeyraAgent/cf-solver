@@ -266,10 +266,18 @@ async def solve_captchafox(
     advanced: bool = False,
     proxy: Optional[str] = None,
     timeout_s: int = 60,
+    sitekey: Optional[str] = None,
+    page_url: Optional[str] = None,
+    mode: str = "image",
+    captcha_type: str = "auto",
 ) -> dict:
-    """Solve a CaptchaFox slide captcha.
+    """Solve a CaptchaFox captcha.
 
-    Two modes:
+    Three modes:
+    0) Protocol (mode="protocol" / "auto"): pass sitekey + page_url, get a live
+       verified token back. No images needed — see protocol.py.
+
+    Two image modes:
     A) Slide offset detection (primary):
        - Pass background image (image_b64 or image_url) AND
          puzzle piece image (piece_b64 or piece_url)
@@ -295,6 +303,21 @@ async def solve_captchafox(
         Uniform dict: {solved, type, token, method, elapsed, error}
         On success: token = encrypted solution (base64), offset = slide offset px
     """
+    # ---- protocol mode: sitekey + page URL -> verified token ----
+    target_url = page_url or image_url
+    use_protocol = mode == "protocol" or (
+        mode == "auto" and bool(sitekey and target_url) and not (image_b64 or image_url)
+    )
+    if use_protocol:
+        from .protocol import solve_protocol
+        return await solve_protocol(
+            sitekey=sitekey or "",
+            site_url=target_url or "",
+            captcha_type=captcha_type,
+            proxy=proxy,
+            timeout_s=timeout_s,
+        )
+
     t0 = time.monotonic()
     result: dict[str, Any] = {
         "type": "captchafox",
