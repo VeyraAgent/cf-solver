@@ -316,6 +316,35 @@ async def solve_hcaptcha_realpage(url: str, sitekey: str = None,
             page = await browser.new_page()
             try:
                 await page.goto(url, wait_until="domcontentloaded", timeout=45000)
+                if "discord.com" in (url or ""):
+                    try:
+                        await page.evaluate("""() => {
+                            const selectors = [
+                                'nav', '[class*="nav"]', '[class*="Nav"]',
+                                '[class*="logo"]', '[class*="Logo"]',
+                                '[class*="brand"]', '[class*="header"]',
+                                'header', '.nav_brand', '.nav_brand_main-logo',
+                                '.nav_brand_main-black-logo'
+                            ];
+                            for (const sel of selectors) {
+                                document.querySelectorAll(sel).forEach(el => {
+                                    el.style.setProperty('display', 'none', 'important');
+                                    el.style.setProperty('visibility', 'hidden', 'important');
+                                    el.style.setProperty('pointer-events', 'none', 'important');
+                                    el.style.setProperty('opacity', '0', 'important');
+                                });
+                            }
+                            document.querySelectorAll('*').forEach(el => {
+                                const s = getComputedStyle(el);
+                                if ((s.position === 'fixed' || s.position === 'sticky') && 
+                                    (el.getBoundingClientRect().top < 120)) {
+                                    el.style.setProperty('display', 'none', 'important');
+                                }
+                            });
+                        }""")
+                        await asyncio.sleep(0.5)
+                    except Exception as e:
+                        log.warning("Failed to hide Discord chrome: %s", e)
                 if pre_actions:
                     await run_pre_actions(page, pre_actions)
                     await asyncio.sleep(2)
