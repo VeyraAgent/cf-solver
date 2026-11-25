@@ -392,6 +392,39 @@ payload was byte-identical — the IP, not the engine, is what changed.
 - Related: [FlareSolverr](https://github.com/FlareSolverr/FlareSolverr), [sarperavci/GoogleRecaptchaBypass](https://github.com/sarperavci/GoogleRecaptchaBypass)
 </details>
 
+## 🎧 reCAPTCHA v2 audio fallback (free, no solver credits)
+
+When the checkbox opens a challenge, cf-solver can answer the **audio** challenge
+instead of paying for image classification:
+
+```bash
+# optional deps, only for this path
+pip install camoufox faster-whisper numpy
+python -m camoufox fetch          # once
+export FFMPEG=/usr/bin/ffmpeg     # ffmpeg must be on PATH too
+
+curl -s -X POST http://localhost:8877/solve -H 'content-type: application/json' \
+  -d '{"type":"recaptcha","url":"https://site/","sitekey":"6Lc...","version":"v2"}'
+# → {"token":"...","method":"audio-camoufox","solved":true}
+```
+
+How it works: `solvers/recaptcha/camoufox_worker.py` opens the page in Camoufox
+(plain Chromium gets *"Your computer or network may be sending automated queries"*
+on the audio endpoint from datacenter egress), pulls the MP3 with the page request
+context, transcribes it with faster-whisper (`small.en`, int8 CPU, ffmpeg decode —
+no pydub/PyAV), replays the answer and returns a token only when
+`#g-recaptcha-response` is non-empty.
+
+| Env | Default | Purpose |
+|---|---|---|
+| `RECAPTCHA_AUDIO_FIRST` | `1` | try audio before image classification |
+| `RECAPTCHA_AUDIO_PY` | `sys.executable` | interpreter that has camoufox + faster-whisper |
+| `RECAPTCHA_AUDIO_WORKER` | bundled worker | override the worker script |
+| `RECAPTCHA_AUDIO_MODEL` | `small.en` | Whisper size |
+
+Notes: the fast checkbox path still runs first (a no-challenge solve stays ~4 s);
+audio trust follows the egress IP, so pass `proxy` when the datacenter IP is flagged.
+
 ## 🔧 Recent fixes
 
 - `steam` selftest used `from solve import …` (absolute), so importing it as

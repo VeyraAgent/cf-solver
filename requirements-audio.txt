@@ -1,0 +1,5 @@
+# optional extras for the reCAPTCHA v2 audio fallback
+camoufox>=0.4
+faster-whisper>=1.1
+numpy>=1.26
+# ffmpeg binary must also be on PATH (or set FFMPEG=/path/to/ffmpeg)
