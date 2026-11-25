@@ -20,6 +20,7 @@ heavily penalised surface.
 import asyncio
 import logging
 import os
+import sys
 import time
 from pathlib import Path
 
@@ -662,6 +663,7 @@ async def solve_recaptcha_v2(sitekey: str, url: str,
     {error, elapsed}.
     """
     t0 = time.monotonic()
+
     page_data = _build_v2_page(sitekey, enterprise=enterprise)
     # Prefer hybrid (ONNX + Mistral) when keys exist; yolo-only only if forced
     if not classifier or classifier == "auto":
@@ -735,7 +737,34 @@ async def solve_recaptcha_v2(sitekey: str, url: str,
                             except Exception:
                                 pass
 
-                    # Image-solve (audio is IP-blocked). Tile classifier: YOLO/Mistral/hybrid.
+                    # Audio-first once a challenge actually opens: free, and the only
+                    # path that survives Google's audio block on flagged egress.
+                    if challenge and os.getenv("RECAPTCHA_AUDIO_FIRST", "1") != "0":
+                        try:
+                            import json as _j
+                            _p = await asyncio.create_subprocess_exec(
+                                os.getenv("RECAPTCHA_AUDIO_PY", sys.executable),
+                                os.getenv("RECAPTCHA_AUDIO_WORKER",
+                                          str(Path(__file__).with_name("camoufox_worker.py"))),
+                                "--url", url, "--sitekey", sitekey or "",
+                                *(["--proxy", proxy] if proxy else []),
+                                stdout=asyncio.subprocess.PIPE,
+                                stderr=asyncio.subprocess.PIPE)
+                            _o, _e = await asyncio.wait_for(_p.communicate(), timeout=240)
+                            _l = (_o or b"").decode().strip().splitlines()[-1:] or [""]
+                            _w = _j.loads(_l[0]) if _l[0] else {}
+                            if _w.get("token"):
+                                log.info("v2: audio-camoufox solved (%s rounds)",
+                                         _w.get("rounds"))
+                                return {"token": _w["token"], "attempts": attempt,
+                                        "elapsed": round(time.monotonic() - t0, 1),
+                                        "method": "audio-camoufox", "solved": True}
+                            log.info("v2: audio-camoufox miss %s",
+                                     str(_w.get("error"))[:60])
+                        except Exception as e:
+                            log.warning("v2 audio-first: %s", str(e).splitlines()[0])
+
+                    # Image-solve (fallback). Tile classifier: YOLO/Mistral/hybrid.
                     if challenge:
                         try:
                             await solve_image_challenge(page, keypool)
@@ -838,6 +867,33 @@ async def solve_recaptcha_v2_realpage(url: str, sitekey: str = None,
                     if token:
                         break
 
+                    # Audio-first (free, no classifier credits): Camoufox worker.
+                    if (os.getenv("RECAPTCHA_AUDIO_FIRST", "1") != "0" and not token
+                            and not image_attempts and await _find_frame(page, "/bframe")):
+                        try:
+                            import json as _j
+                            _p = await asyncio.create_subprocess_exec(
+                                os.getenv("RECAPTCHA_AUDIO_PY", sys.executable),
+                                os.getenv("RECAPTCHA_AUDIO_WORKER",
+                                          str(Path(__file__).with_name("camoufox_worker.py"))),
+                                "--url", url, "--sitekey", sitekey or "",
+                                stdout=asyncio.subprocess.PIPE,
+                                stderr=asyncio.subprocess.PIPE)
+                            _o, _e = await asyncio.wait_for(_p.communicate(), timeout=240)
+                            _l = (_o or b"").decode().strip().splitlines()[-1:] or [""]
+                            _w = _j.loads(_l[0]) if _l[0] else {}
+                            if _w.get("token"):
+                                token = _w["token"]
+                                method = "audio-camoufox"
+                                log.info("v2 realpage: audio-first solved (%s rounds)",
+                                         _w.get("rounds"))
+                                break
+                            log.info("v2 realpage: audio-first miss %s",
+                                     str(_w.get("error"))[:60])
+                        except Exception as e:
+                            log.warning("v2 realpage audio-first: %s",
+                                        str(e).splitlines()[0])
+
                     # Image bframe opened after checkbox click — solve the grid.
                     # Retry on fresh challenges after a failed verify.
                     if (image_attempts < max_image_attempts
@@ -858,6 +914,51 @@ async def solve_recaptcha_v2_realpage(url: str, sitekey: str = None,
                             break
                         # keep polling for residual token / next challenge
                         continue
+
+                    # Camoufox audio worker: plain Chromium gets "automated queries" on
+                    # the audio fallback from datacenter egress, Camoufox passes.
+                    if os.getenv("RECAPTCHA_AUDIO_CAMOUFOX", "1") != "0" and not token:
+                        try:
+                            import json as _json
+                            proc = await asyncio.create_subprocess_exec(
+                                os.getenv("RECAPTCHA_AUDIO_PY", sys.executable),
+                                os.getenv("RECAPTCHA_AUDIO_WORKER",
+                                          str(Path(__file__).with_name("camoufox_worker.py"))),
+                                "--url", url, "--sitekey", sitekey or "",
+                                stdout=asyncio.subprocess.PIPE,
+                                stderr=asyncio.subprocess.PIPE)
+                            out, err = await asyncio.wait_for(proc.communicate(), timeout=240)
+                            line = (out or b"").decode().strip().splitlines()[-1:] or [""]
+                            w = _json.loads(line[0]) if line[0] else {}
+                            if w.get("token"):
+                                token = w["token"]
+                                method = "audio-camoufox"
+                                log.info("v2 realpage: camoufox audio solved (%s rounds)",
+                                         w.get("rounds"))
+                                break
+                            log.info("v2 realpage: camoufox audio miss %s",
+                                     str(w.get("error"))[:60])
+                        except Exception as e:
+                            log.warning("v2 realpage camoufox-audio: %s",
+                                        str(e).splitlines()[0])
+
+                    # Local Whisper audio fallback (free): switch bframe to audio,
+                    # transcribe the MP3 with the codex-farm venv, replay the answer.
+                    if os.getenv("RECAPTCHA_AUDIO_LOCAL", "1") != "0" and not token:
+                        try:
+                            from .audio_local import solve_audio_local
+                            r = await solve_audio_local(page)
+                            if r.get("token"):
+                                token = r["token"]
+                                method = "audio-local"
+                                log.info("v2 realpage: audio-local solved in %s rounds",
+                                         r.get("rounds"))
+                                break
+                            log.info("v2 realpage: audio-local miss (%s)",
+                                     r.get("error"))
+                        except Exception as e:
+                            log.warning("v2 realpage audio-local: %s",
+                                        str(e).splitlines()[0])
 
                     if await _audio_blocked(page):
                         break
